@@ -33,7 +33,7 @@ this is an architectural requirement, not a preference.
 | Forms | react-hook-form + zod + @hookform/resolvers |
 | Toasts | sonner |
 | Class utils | clsx + tailwind-merge (via `cn()` in `src/lib/utils.ts`) |
-| Database | Supabase (Postgres, JS client v2, anon key, no RLS in Phase 1) |
+| Database | Supabase (Postgres, JS client v2, single-user auth, RLS enabled) |
 | TTS | Web Speech API — browser-native, `zh-TW` locale only |
 | AI — Text | Anthropic API (Phase 2 only — user-supplied key stored in localStorage) |
 | Testing | Vitest + @testing-library/react (unit), Playwright (E2E) |
@@ -62,15 +62,18 @@ HuaYu/
 │   │   ├── database.types.ts # Generated — run `supabase gen types` after schema changes
 │   │   ├── logger.ts        # Log utility (debug/info/warn/error, dev-only for debug+info)
 │   │   ├── utils.ts         # cn() helper
-│   │   └── schemas/         # Zod schemas: seeds.ts, phrases.ts (one per entity)
+│   │   └── schemas/         # Zod schemas: seeds.ts, phrases.ts, auth.ts (one per entity)
 │   ├── components/
 │   │   ├── ui/              # shadcn primitives + Skeleton, Pagination, AudioPlayButton
 │   │   ├── layout/          # AppShell, Sidebar, BottomNav, Header
 │   │   └── shared/          # ErrorBoundary, ErrorPage, ConfirmDialog (singleton)
+│   ├── context/             # AuthContext, ConfirmDialogContext, TtsContext
 │   └── features/
+│       ├── auth/            # LoginPage, RequireAuth (route gate)
 │       ├── seeds/           # SeedsList, SeedCard, SeedForm (modal)
 │       ├── phrases/         # PhrasesList, PhraseCard, PhraseForm (modal), GlobalPhrases
 │       └── drilling/        # DrillingMode, DrillingControls
+├── supabase/migrations/     # SQL migrations (RLS policies, schema changes)
 ```
 
 ---
@@ -132,7 +135,10 @@ Stored in `localStorage` by the user at runtime. Never in env vars or committed 
   Three button states: idle, playing, voice-unavailable.
 
 ### Supabase / Data
-- **No authentication in Phase 1**: All queries use the anon key. RLS is disabled.
+- **Single-user auth**: Supabase email/password auth with one user. RLS is enabled — policies
+  grant full access to the `authenticated` role only; `anon` has none. Routes are gated by
+  `<RequireAuth>` (shows `LoginPage` when signed out); supabase-js persists the session.
+  SQL migrations live in `supabase/migrations/`. Per-user policies (`user_id`) are Phase 2.
 - **Generated types**: Use `Database['public']['Tables']['seeds']['Row']` — never write manual
   interface definitions for table rows.
 - **Ordering**: Phrases always ordered by `created_at ASC`. No reordering feature in any phase.

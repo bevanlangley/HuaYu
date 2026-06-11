@@ -6,6 +6,14 @@ import type { phraseSchema } from '@/lib/schemas/phrases'
 
 export type PhraseFormData = z.infer<typeof phraseSchema>
 
+// PostgREST treats , ( ) as filter syntax; double-quoting the value keeps the
+// user's search term literal. Quotes/backslashes inside must be backslash-escaped.
+export function buildPhraseSearchFilter(term: string): string {
+  const escaped = term.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const value = `"%${escaped}%"`
+  return ['mandarin', 'english', 'pinyin'].map(col => `${col}.ilike.${value}`).join(',')
+}
+
 export async function fetchPhrasesBySeed(seedId: string): Promise<Phrase[]> {
   logger.info('Fetching phrases for seed', { seedId })
   const { data, error } = await supabase
@@ -36,8 +44,7 @@ export async function fetchAllPhrases(opts: {
     .order('created_at', { ascending: true })
 
   if (search.trim()) {
-    const term = `%${search.trim()}%`
-    query = query.or(`mandarin.ilike.${term},english.ilike.${term},pinyin.ilike.${term}`)
+    query = query.or(buildPhraseSearchFilter(search.trim()))
   }
 
   const from = (page - 1) * pageSize

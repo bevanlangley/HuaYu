@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, Library, Zap, Moon, Sun } from 'lucide-react'
+import { BookOpen, Library, Zap, Moon, Sun, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/hooks/useTheme'
+import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
   { to: '/seeds', icon: BookOpen, label: 'Seeds' },
@@ -11,6 +12,7 @@ const navItems = [
 
 export function Sidebar() {
   const { theme, toggleTheme } = useTheme()
+  const { signOut } = useAuth()
 
   return (
     <aside className="hidden w-56 flex-col border-r border-grey-200 bg-white dark:border-grey-700 dark:bg-grey-800 md:flex">
@@ -61,6 +63,18 @@ export function Sidebar() {
             <Sun className="h-4 w-4 shrink-0" strokeWidth={1.5} />
           )}
           {theme === 'light' ? 'Dark mode' : 'Light mode'}
+        </button>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+            'text-grey-600 hover:bg-grey-100 hover:text-grey-800 dark:text-grey-400 dark:hover:bg-grey-700 dark:hover:text-grey-200',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50'
+          )}
+        >
+          <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+          Sign out
         </button>
       </div>
     </aside>

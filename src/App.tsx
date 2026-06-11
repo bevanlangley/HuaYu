@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
+import { AuthProvider } from '@/context/AuthContext'
+import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -22,7 +24,11 @@ function PageLoader() {
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     errorElement: <ErrorPage />,
     children: [
       { index: true, element: <Navigate to="/seeds" replace /> },
@@ -66,7 +72,9 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <ErrorBoundary>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </ErrorBoundary>
   )
 }

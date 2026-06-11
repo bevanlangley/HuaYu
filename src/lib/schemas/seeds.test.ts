@@ -31,6 +31,12 @@ describe('seedSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('trims source_url whitespace before URL validation', () => {
+    const result = seedSchema.safeParse({ name: 'Test', source_url: ' https://example.com ', tag: '' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.source_url).toBe('https://example.com')
+  })
+
   it('trims name whitespace', () => {
     const result = seedSchema.safeParse({ name: '  HSK  ', source_url: '', tag: '' })
     expect(result.success).toBe(true)

@@ -45,6 +45,12 @@ Active: `primary-500` underline/indicator.
 
 ## Feature Summary
 
+### Auth (`features/auth/` + `context/AuthContext.tsx`)
+- Single-user Supabase email/password auth. `<RequireAuth>` wraps `<AppShell>` in the router:
+  spinner while the session resolves, `LoginPage` when signed out, app when signed in.
+- Sign-out buttons: Sidebar footer (desktop), Header icon (mobile).
+- RLS policies allow only the `authenticated` role (see `database.md`).
+
 ### Seeds CRUD (`features/seeds/`)
 - List view: Seeds ordered by `created_at DESC`. Tag filter (pill/toggle). Empty state.
 - Create/edit: modal dialog with SeedForm. Name required, source_url + tag optional.

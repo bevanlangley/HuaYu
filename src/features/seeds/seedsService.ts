@@ -6,47 +6,38 @@ import type { seedSchema } from '@/lib/schemas/seeds'
 
 export type SeedFormData = z.infer<typeof seedSchema>
 
+export function toSeedWithCount(row: Seed & { phrases: { count: number }[] }): SeedWithCount {
+  const { phrases, ...seed } = row
+  return { ...seed, phraseCount: phrases[0]?.count ?? 0 }
+}
+
 export async function fetchSeeds(): Promise<SeedWithCount[]> {
   logger.info('Fetching seeds')
 
-  const [seedsResult, phrasesResult] = await Promise.all([
-    supabase.from('seeds').select('*').order('created_at', { ascending: false }),
-    supabase.from('phrases').select('id, seed_id'),
-  ])
+  const { data, error } = await supabase
+    .from('seeds')
+    .select('*, phrases(count)')
+    .order('created_at', { ascending: false })
 
-  if (seedsResult.error) {
-    logger.error('Failed to fetch seeds', seedsResult.error)
-    throw seedsResult.error
-  }
-  if (phrasesResult.error) {
-    logger.error('Failed to fetch phrase counts', phrasesResult.error)
-    throw phrasesResult.error
+  if (error) {
+    logger.error('Failed to fetch seeds', error)
+    throw error
   }
 
-  const countMap = new Map<string, number>()
-  for (const p of phrasesResult.data ?? []) {
-    countMap.set(p.seed_id, (countMap.get(p.seed_id) ?? 0) + 1)
-  }
-
-  const seeds: SeedWithCount[] = (seedsResult.data ?? []).map(seed => ({
-    ...seed,
-    phraseCount: countMap.get(seed.id) ?? 0,
-  }))
-
+  const seeds = (data ?? []).map(toSeedWithCount)
   logger.info('Seeds fetched', { count: seeds.length })
   return seeds
 }
 
 export async function fetchSeedById(id: string): Promise<Seed | null> {
   logger.info('Fetching seed', { id })
-  const { data, error } = await supabase.from('seeds').select('*').eq('id', id).single()
+  const { data, error } = await supabase.from('seeds').select('*').eq('id', id).maybeSingle()
 
   if (error) {
-    if (error.code === 'PGRST116') return null
     logger.error('Failed to fetch seed', error)
     throw error
   }
-  logger.info('Seed fetched', { id })
+  logger.info('Seed fetched', { id, found: data !== null })
   return data
 }
 

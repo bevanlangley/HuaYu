@@ -1,6 +1,9 @@
 # Database — HuaYu
 
-Supabase (Postgres). No RLS in Phase 1. All queries use the anon key. No authentication.
+Supabase (Postgres). RLS is **enabled** on all tables: policies grant full access to the
+`authenticated` role; `anon` has no access. Auth is single-user email/password (no `user_id`
+columns yet — that's the Phase 2 multi-user migration). SQL migrations are committed under
+`supabase/migrations/` and run via the Management API (see user memory: Supabase access).
 Phase 2 tables are defined here but must NOT be created until Phase 2 build begins.
 
 ## Phase 1 Tables (Active)
@@ -67,9 +70,9 @@ Script JSON format (Speaker 2 always contains the selected Phrases):
 Composite PK on `(dialogue_id, phrase_id)`. `phrase_id` FK is NO ACTION — orphaned rows acceptable.
 
 ## Phase 2 Migration Path (do not implement now)
-- Enable RLS
 - Add `user_id uuid NOT NULL references auth.users` to `seeds`, `phrases`, `dialogues`
-- RLS policies: users can only read/write their own rows
+- Replace the "authenticated full access" policies with per-user policies
+  (users can only read/write their own rows)
 
 ## TypeScript Types
 Generated from Supabase. Never write manual row interfaces.

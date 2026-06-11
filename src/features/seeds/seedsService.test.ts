@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getUniqueTags } from './seedsService'
+import { getUniqueTags, toSeedWithCount } from './seedsService'
 import type { Seed } from '@/lib/database.types'
 
 function makeSeed(overrides: Partial<Seed> = {}): Seed {
@@ -12,6 +12,25 @@ function makeSeed(overrides: Partial<Seed> = {}): Seed {
     ...overrides,
   }
 }
+
+describe('toSeedWithCount', () => {
+  it('maps the embedded count aggregate to phraseCount', () => {
+    const seed = makeSeed()
+    const row = { ...seed, phrases: [{ count: 7 }] }
+    expect(toSeedWithCount(row)).toEqual({ ...seed, phraseCount: 7 })
+  })
+
+  it('defaults phraseCount to 0 when the aggregate is empty', () => {
+    const seed = makeSeed()
+    const row = { ...seed, phrases: [] }
+    expect(toSeedWithCount(row)).toEqual({ ...seed, phraseCount: 0 })
+  })
+
+  it('strips the embedded phrases key from the result', () => {
+    const row = { ...makeSeed(), phrases: [{ count: 3 }] }
+    expect(toSeedWithCount(row)).not.toHaveProperty('phrases')
+  })
+})
 
 describe('getUniqueTags', () => {
   it('returns empty array when no seeds have tags', () => {

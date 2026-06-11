@@ -15,12 +15,16 @@ Max 2 hops from cold start to any detail.
 
 - [features.md](features.md) — Feature inventory, phase status, routing structure, nav structure, component locations. **Load when:** adding a new page/route, checking what's in scope for Phase 1, finding where a feature lives in the codebase.
 
+- [supabase.md](supabase.md) — How to run SQL autonomously via the Management API. Credentials stored in `.env.local`. **Load when:** running migrations, creating tables, or any Supabase schema work.
+
+- [vercel.md](vercel.md) — How to manage deployments and env vars via Vercel API. Credentials stored in `.env.local`. **Load when:** deploying, setting env vars, checking build status.
+
 ---
 
 ## Cross-Cutting Patterns (Always Apply)
 
 - **Taiwanese Mandarin only** — TTS locale must be `zh-TW`. AI content (Phase 2) must be prompted for Taiwanese vocabulary.
-- **Phase 1 scope** — Do not scaffold Phase 2 or Phase 3 features. No RLS, no auth, no `user_id` columns yet.
+- **Phase 1 scope** — Do not scaffold Phase 2 or Phase 3 features. Single-user auth + RLS (authenticated-only policies) are live; no `user_id` columns or per-user policies yet.
 - **Logger on every Supabase call** — `logger.info` before, `logger.error` on failure. Never expose raw DB errors to users.
 - **Forms** — always `react-hook-form` + zod + `@hookform/resolvers`. Schemas in `src/lib/schemas/`.
 - **No `window.confirm()`** — always `openConfirmDialog()` from the global context singleton.
