@@ -23,10 +23,6 @@ export function RecallPage() {
     if (!justRevealed || !currentPhrase) return
     cancelAudioRef.current?.()
     cancelAudioRef.current = speakMandarin(currentPhrase.mandarin)
-    return () => {
-      cancelAudioRef.current?.()
-      cancelAudioRef.current = null
-    }
   }, [justRevealed, currentPhrase])
 
   // Cancel audio on unmount
@@ -108,7 +104,7 @@ export function RecallPage() {
 
                   {isRevealed ? (
                     <div className="flex flex-col items-center gap-3 mt-4">
-                      <p lang="zh-TW" className="text-[28px] font-medium">{currentPhrase.mandarin}</p>
+                      <p lang="zh-TW" className="text-3xl font-medium">{currentPhrase.mandarin}</p>
                       <p className="text-lg text-grey-600 dark:text-grey-400">{currentPhrase.pinyin}</p>
                       <Button
                         variant="ghost"
