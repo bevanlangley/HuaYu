@@ -9,6 +9,9 @@ vi.mock('./useDrilling', () => ({
 vi.mock('@/context/TtsContext', () => ({
   useTts: () => ({ voiceStatus: 'zh-TW', currentlyPlaying: null, setCurrentlyPlaying: vi.fn() }),
 }))
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({ session: { user: { email: 'test@example.com' } }, loading: false, signIn: vi.fn(), signOut: vi.fn() }),
+}))
 
 import { useDrilling } from './useDrilling'
 
