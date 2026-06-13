@@ -18,6 +18,7 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/context/TtsContext', () => ({
   useTts: () => ({ voiceStatus: 'zh-TW', currentlyPlaying: null, setCurrentlyPlaying: vi.fn() }),
 }))
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 import { fetchSeeds } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
@@ -183,5 +184,47 @@ describe('useDrilling', () => {
     expect(result.current.sessionActive).toBe(false)
     expect(result.current.currentIndex).toBe(0)
     expect(result.current.phrases).toEqual([])
+  })
+
+  it('next does not cancel audio when already at last phrase', async () => {
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+    act(() => result.current.next()) // go to last (index 1)
+    vi.clearAllMocks()
+    act(() => result.current.next()) // already at last — should be no-op
+
+    expect(result.current.currentIndex).toBe(1)
+    expect(speakMandarin).not.toHaveBeenCalled()
+  })
+
+  it('resume does not auto-speak in shadow mode', async () => {
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+    act(() => result.current.pause())
+    vi.clearAllMocks()
+    act(() => result.current.resume())
+
+    expect(speakMandarin).not.toHaveBeenCalled()
+  })
+
+  it('startSession logs error when fetch fails', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockRejectedValueOnce(new Error('network error'))
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'listen', random: false, gapSeconds: 2, loop: false })
+    })
+
+    expect(result.current.sessionActive).toBe(false)
+    expect(result.current.phrasesLoading).toBe(false)
   })
 })

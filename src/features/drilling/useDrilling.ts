@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { toast } from 'sonner'
 import { fetchSeeds } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { speakMandarin } from '@/lib/tts'
@@ -53,6 +54,15 @@ export function useDrilling() {
       .finally(() => setSeedsLoading(false))
   }, [])
 
+  useEffect(() => {
+    return () => {
+      cancelAudioRef.current?.()
+      cancelAudioRef.current = null
+      if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
+      gapTimerRef.current = null
+    }
+  }, [])
+
   const stopSession = useCallback(() => {
     cancelAudioRef.current?.()
     cancelAudioRef.current = null
@@ -105,6 +115,11 @@ export function useDrilling() {
   }, [setCurrentlyPlaying, stopSession])
 
   const startSession = useCallback(async (cfg: DrillConfig) => {
+    cancelAudioRef.current?.()
+    cancelAudioRef.current = null
+    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
+    gapTimerRef.current = null
+    setCurrentlyPlaying(null)
     setPhrasesLoading(true)
     try {
       const raw = cfg.seedId
@@ -123,10 +138,13 @@ export function useDrilling() {
       if (cfg.drillType === 'listen') {
         speakAtIndex(0)
       }
+    } catch (err) {
+      logger.error('Failed to start drill session', err)
+      toast.error('Could not load phrases. Try again.')
     } finally {
       setPhrasesLoading(false)
     }
-  }, [speakAtIndex])
+  }, [speakAtIndex, setCurrentlyPlaying])
 
   const pause = useCallback(() => {
     cancelAudioRef.current?.()
@@ -141,10 +159,13 @@ export function useDrilling() {
   const resume = useCallback(() => {
     playbackStateRef.current = 'playing'
     setPlaybackState('playing')
-    speakAtIndex(indexRef.current)
+    if (configRef.current?.drillType === 'listen') {
+      speakAtIndex(indexRef.current)
+    }
   }, [speakAtIndex])
 
   const next = useCallback(() => {
+    if (indexRef.current >= phrasesRef.current.length - 1) return
     cancelAudioRef.current?.()
     cancelAudioRef.current = null
     if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
