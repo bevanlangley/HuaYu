@@ -1,154 +1,192 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Link } from 'react-router-dom'
-import { fetchSeeds } from '@/features/seeds/seedsService'
-import { useDrilling } from '@/features/drilling/useDrilling'
-import { DrillingControls } from '@/features/drilling/DrillingControls'
-import { Header } from '@/components/layout/Header'
-import { Spinner } from '@/components/ui/Spinner'
+import { Eye, EyeOff } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/Skeleton'
-import type { Seed } from '@/lib/database.types'
+import { DrillingControls } from './DrillingControls'
+import { useDrilling } from './useDrilling'
+import type { DrillType } from './useDrilling'
 
 export function DrillingMode() {
   const location = useLocation()
-  const locationSeedId = (location.state as { seedId?: string } | null)?.seedId ?? null
+  const preselectedSeedId: string | null = (location.state as { seedId?: string } | null)?.seedId ?? null
 
-  const [seeds, setSeeds] = useState<Seed[]>([])
-  const [seedsLoading, setSeedsLoading] = useState(true)
-  const [selectedSeedId, setSelectedSeedId] = useState<string | null>(locationSeedId)
-
-  useEffect(() => {
-    fetchSeeds()
-      .then(data => {
-        setSeeds(data)
-        if (!selectedSeedId && data.length > 0) {
-          setSelectedSeedId(data[0].id)
-        }
-      })
-      .finally(() => setSeedsLoading(false))
-  }, [])
+  const [drillType, setDrillType] = useState<DrillType>('listen')
+  const [seedId, setSeedId] = useState<string | null>(preselectedSeedId)
+  const [random, setRandom] = useState(false)
+  const [gapSeconds, setGapSeconds] = useState(3)
+  const [loop, setLoop] = useState(false)
+  const [showText, setShowText] = useState(true)
 
   const {
-    phrases,
-    loading: phrasesLoading,
-    currentPhrase,
-    currentIndex,
-    mode,
-    play,
-    pause,
-    resume,
-    stop,
-    next,
-    previous,
-    speakCurrentManually,
-  } = useDrilling({ seedId: selectedSeedId })
+    seeds, seedsLoading,
+    sessionActive, config, phrases, phrasesLoading,
+    currentIndex, currentPhrase, playbackState,
+    startSession, stopSession, pause, resume, next, previous, speakCurrent,
+  } = useDrilling()
+
+  function handleStart() {
+    startSession({ seedId, drillType, random, gapSeconds, loop })
+  }
+
+  const displayText = config?.drillType === 'listen' ? showText : true
 
   return (
-    <div className="flex flex-col">
-      <Header title="Drill" />
+    <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
+      <h1 className="text-2xl font-medium">Drill</h1>
 
-      <div className="p-4 md:p-6">
-        {/* Desktop header */}
-        <div className="mb-6 hidden md:block">
-          <h1 className="text-lg font-medium text-grey-800 dark:text-grey-100">Fluency Drilling</h1>
-          <p className="mt-0.5 text-sm text-grey-500 dark:text-grey-400">
-            Auto-play phrases to build fluency
-          </p>
-        </div>
-
-        {seedsLoading ? (
-          <Skeleton className="h-10 w-full max-w-xs" />
-        ) : seeds.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm text-grey-500 dark:text-grey-400">
-              No seeds yet.{' '}
-              <Link to="/seeds" className="text-primary-500 hover:underline dark:text-primary-400">
-                Create a seed
-              </Link>{' '}
-              and add phrases to start drilling.
-            </p>
+      {!sessionActive && (
+        <div className="flex flex-col gap-5 p-6 bg-grey-100 dark:bg-grey-800 rounded-lg">
+          {/* Mode */}
+          <div className="flex flex-col gap-2">
+            <Label>Mode</Label>
+            <div className="flex gap-2">
+              {(['listen', 'shadow'] as DrillType[]).map((m) => (
+                <Button
+                  key={m}
+                  variant={drillType === m ? 'default' : 'ghost'}
+                  onClick={() => setDrillType(m)}
+                  className="capitalize"
+                >
+                  {m === 'listen' ? 'Listen' : 'Shadow'}
+                </Button>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {/* Seed selector */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="drill-seed" className="text-[13px] font-medium text-grey-700 dark:text-grey-300">
-                Seed
-              </label>
+
+          {/* Source */}
+          <div className="flex flex-col gap-2">
+            <Label>Source</Label>
+            {seedsLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
               <select
-                id="drill-seed"
-                value={selectedSeedId ?? ''}
-                onChange={e => {
-                  stop()
-                  setSelectedSeedId(e.target.value || null)
-                }}
-                className="w-full max-w-xs rounded-md border border-grey-300 bg-white px-3 py-2 text-sm text-grey-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-grey-600 dark:bg-grey-800 dark:text-grey-100"
+                value={seedId ?? 'all'}
+                onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
+                className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm"
               >
-                {seeds.map(seed => (
-                  <option key={seed.id} value={seed.id}>
-                    {seed.name}
+                <option value="all">All phrases</option>
+                {seeds.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.phraseCount})
                   </option>
                 ))}
               </select>
-            </div>
-
-            {phrasesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Spinner />
-              </div>
-            ) : phrases.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <p className="text-sm text-grey-500 dark:text-grey-400">
-                  This seed has no phrases yet.{' '}
-                  <Link
-                    to={`/seeds/${selectedSeedId}`}
-                    className="text-primary-500 hover:underline dark:text-primary-400"
-                  >
-                    Add phrases
-                  </Link>
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-6">
-                {/* Current phrase display */}
-                <div className="w-full max-w-md rounded-lg border border-grey-200 bg-white p-6 text-center dark:border-grey-700 dark:bg-grey-800">
-                  {currentPhrase ? (
-                    <>
-                      <p
-                        lang="zh-TW"
-                        className="text-3xl font-medium text-grey-800 dark:text-grey-100"
-                      >
-                        {currentPhrase.mandarin}
-                      </p>
-                      <p className="mt-2 text-base text-grey-500 dark:text-grey-400">
-                        {currentPhrase.pinyin}
-                      </p>
-                      <p className="mt-1 text-base text-grey-500 dark:text-grey-400">
-                        {currentPhrase.english}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-grey-400 dark:text-grey-500">No phrase selected</p>
-                  )}
-                </div>
-
-                <DrillingControls
-                  mode={mode}
-                  currentIndex={currentIndex}
-                  totalPhrases={phrases.length}
-                  onPlay={play}
-                  onPause={pause}
-                  onResume={resume}
-                  onStop={stop}
-                  onNext={next}
-                  onPrevious={previous}
-                  onSpeak={speakCurrentManually}
-                />
-              </div>
             )}
           </div>
-        )}
-      </div>
+
+          {/* Order */}
+          <div className="flex flex-col gap-2">
+            <Label>Order</Label>
+            <div className="flex gap-2">
+              <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
+                In order
+              </Button>
+              <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
+                Random
+              </Button>
+            </div>
+          </div>
+
+          {/* Listen-only options */}
+          {drillType === 'listen' && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="gap">Gap between phrases (seconds)</Label>
+                <input
+                  id="gap"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={gapSeconds}
+                  onChange={(e) => setGapSeconds(Math.min(30, Math.max(1, Number(e.target.value))))}
+                  className="w-24 rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Label htmlFor="loop">Loop</Label>
+                <button
+                  id="loop"
+                  role="switch"
+                  aria-checked={loop}
+                  onClick={() => setLoop((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${loop ? 'bg-primary-500' : 'bg-grey-300 dark:bg-grey-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${loop ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Label htmlFor="showText">Show text</Label>
+                <button
+                  id="showText"
+                  role="switch"
+                  aria-checked={showText}
+                  onClick={() => setShowText((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${showText ? 'bg-primary-500' : 'bg-grey-300 dark:bg-grey-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showText ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </>
+          )}
+
+          <Button onClick={handleStart} disabled={phrasesLoading} className="self-start">
+            {phrasesLoading ? 'Loading…' : 'Start'}
+          </Button>
+        </div>
+      )}
+
+      {sessionActive && (
+        <div className="flex flex-col items-center gap-6">
+          {/* Show text toggle (listen only) */}
+          {config?.drillType === 'listen' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowText((v) => !v)}
+              className="self-end flex items-center gap-1.5"
+              aria-label={showText ? 'Hide text' : 'Show text'}
+            >
+              {showText ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+              {showText ? 'Hide text' : 'Show text'}
+            </Button>
+          )}
+
+          {/* Phrase card */}
+          <div className="w-full min-h-48 flex items-center justify-center p-8 bg-grey-100 dark:bg-grey-800 rounded-lg">
+            {displayText && currentPhrase ? (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <p lang="zh-TW" className="text-4xl font-medium">{currentPhrase.mandarin}</p>
+                <p className="text-xl text-grey-600 dark:text-grey-400">{currentPhrase.pinyin}</p>
+                <p className="text-lg text-grey-500">{currentPhrase.english}</p>
+              </div>
+            ) : (
+              <p className="text-grey-400 text-sm">Audio only</p>
+            )}
+          </div>
+
+          {/* Empty state */}
+          {phrases.length === 0 && !phrasesLoading && (
+            <p className="text-grey-500 text-sm">No phrases found for this source.</p>
+          )}
+
+          <DrillingControls
+            drillType={config?.drillType ?? 'listen'}
+            playbackState={playbackState}
+            currentIndex={currentIndex}
+            totalPhrases={phrases.length}
+            onPlay={speakCurrent}
+            onPause={pause}
+            onResume={resume}
+            onStop={stopSession}
+            onNext={next}
+            onPrevious={previous}
+          />
+        </div>
+      )}
     </div>
   )
 }
