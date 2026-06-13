@@ -104,3 +104,17 @@ export async function deletePhrase(id: string): Promise<void> {
   }
   logger.info('Phrase deleted', { id })
 }
+
+export async function fetchAllPhrasesUnpaginated(): Promise<Phrase[]> {
+  logger.info('Fetching all phrases unpaginated')
+  const { data, error } = await supabase
+    .from('phrases')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) {
+    logger.error('Failed to fetch all phrases unpaginated', error)
+    return []
+  }
+  logger.info('All phrases fetched', { count: data?.length })
+  return data ?? []
+}

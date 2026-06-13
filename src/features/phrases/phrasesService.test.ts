@@ -1,5 +1,21 @@
-import { describe, it, expect } from 'vitest'
-import { buildPhraseSearchFilter } from './phrasesService'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { buildPhraseSearchFilter, fetchAllPhrasesUnpaginated } from './phrasesService'
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}))
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+}))
+
+import { supabase } from '@/lib/supabase'
+
+const mockPhrases = [
+  { id: 'p1', seed_id: 's1', mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', created_at: '2024-01-01' },
+  { id: 'p2', seed_id: 's1', mandarin: '謝謝', pinyin: 'xiè xiè', english: 'Thank you', created_at: '2024-01-02' },
+]
 
 describe('buildPhraseSearchFilter', () => {
   it('builds an or-filter across mandarin, english, and pinyin with quoted values', () => {
@@ -30,5 +46,32 @@ describe('buildPhraseSearchFilter', () => {
     expect(buildPhraseSearchFilter('a\\b')).toBe(
       'mandarin.ilike."%a\\\\b%",english.ilike."%a\\\\b%",pinyin.ilike."%a\\\\b%"'
     )
+  })
+})
+
+describe('fetchAllPhrasesUnpaginated', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns all phrases ordered by created_at asc', async () => {
+    const mockOrder = vi.fn().mockResolvedValue({ data: mockPhrases, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const result = await fetchAllPhrasesUnpaginated()
+
+    expect(supabase.from).toHaveBeenCalledWith('phrases')
+    expect(mockSelect).toHaveBeenCalledWith('*')
+    expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: true })
+    expect(result).toEqual(mockPhrases)
+  })
+
+  it('returns empty array on error', async () => {
+    const mockOrder = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const result = await fetchAllPhrasesUnpaginated()
+
+    expect(result).toEqual([])
   })
 })
