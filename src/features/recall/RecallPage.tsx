@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Volume2 } from 'lucide-react'
+import { Volume2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Header } from '@/components/layout/Header'
 import { speakMandarin } from '@/lib/tts'
+import { useTts } from '@/context/TtsContext'
 import { useRecall } from './useRecall'
 
 export function RecallPage() {
@@ -17,26 +18,34 @@ export function RecallPage() {
     startSession, stopSession, reveal, next, previous,
   } = useRecall()
 
+  const { setCurrentlyPlaying } = useTts()
   const cancelAudioRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (!justRevealed || !currentPhrase) return
     cancelAudioRef.current?.()
-    cancelAudioRef.current = speakMandarin(currentPhrase.mandarin)
-  }, [justRevealed, currentPhrase])
+    setCurrentlyPlaying(currentPhrase.id)
+    cancelAudioRef.current = speakMandarin(currentPhrase.mandarin, () => {
+      setCurrentlyPlaying(null)
+    })
+  }, [justRevealed, currentPhrase, setCurrentlyPlaying])
 
   // Cancel audio on unmount
   useEffect(() => {
     return () => {
       cancelAudioRef.current?.()
       cancelAudioRef.current = null
+      setCurrentlyPlaying(null)
     }
-  }, [])
+  }, [setCurrentlyPlaying])
 
   function handleReplayAudio() {
     if (!currentPhrase) return
     cancelAudioRef.current?.()
-    cancelAudioRef.current = speakMandarin(currentPhrase.mandarin)
+    setCurrentlyPlaying(currentPhrase.id)
+    cancelAudioRef.current = speakMandarin(currentPhrase.mandarin, () => {
+      setCurrentlyPlaying(null)
+    })
   }
 
   function handleStart() {
@@ -129,10 +138,12 @@ export function RecallPage() {
 
             <div className="flex items-center gap-3">
               <Button variant="ghost" onClick={previous} disabled={currentIndex === 0}>
-                ← Previous
+                <ChevronLeft size={20} strokeWidth={1.5} />
+                Previous
               </Button>
               <Button variant="ghost" onClick={next} disabled={currentIndex >= phrases.length - 1}>
-                Next →
+                Next
+                <ChevronRight size={20} strokeWidth={1.5} />
               </Button>
               <Button variant="ghost" onClick={stopSession}>
                 Stop

@@ -12,6 +12,9 @@ vi.mock('@/lib/tts', () => ({
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, signOut: vi.fn() }),
 }))
+vi.mock('@/context/TtsContext', () => ({
+  useTts: () => ({ voiceStatus: 'zh-TW', currentlyPlaying: null, setCurrentlyPlaying: vi.fn() }),
+}))
 
 import { useRecall } from './useRecall'
 

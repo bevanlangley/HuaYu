@@ -113,7 +113,7 @@ export async function fetchAllPhrasesUnpaginated(): Promise<Phrase[]> {
     .order('created_at', { ascending: true })
   if (error) {
     logger.error('Failed to fetch all phrases unpaginated', error)
-    return []
+    throw error
   }
   logger.info('All phrases fetched', { count: data?.length })
   return data ?? []

@@ -65,13 +65,11 @@ describe('fetchAllPhrasesUnpaginated', () => {
     expect(result).toEqual(mockPhrases)
   })
 
-  it('returns empty array on error', async () => {
+  it('throws when supabase errors', async () => {
     const mockOrder = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
     const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
 
-    const result = await fetchAllPhrasesUnpaginated()
-
-    expect(result).toEqual([])
+    await expect(fetchAllPhrasesUnpaginated()).rejects.toMatchObject({ message: 'DB error' })
   })
 })

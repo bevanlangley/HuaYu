@@ -215,6 +215,41 @@ describe('useDrilling', () => {
     expect(speakMandarin).not.toHaveBeenCalled()
   })
 
+  it('restarts from index 0 when loop is on and last phrase ends', async () => {
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({
+        seedId: null,
+        drillType: 'listen',
+        random: false,
+        gapSeconds: 1,
+        loop: true,
+      })
+    })
+
+    // Both phrases are in session, index starts at 0
+    expect(result.current.currentIndex).toBe(0)
+
+    // Finish phrase 0
+    const onEnd0 = vi.mocked(speakMandarin).mock.calls[0][1] as () => void
+    act(() => { onEnd0() })
+    act(() => { vi.advanceTimersByTime(1000) })
+
+    // Now at phrase 1
+    await waitFor(() => expect(result.current.currentIndex).toBe(1))
+
+    // Finish phrase 1 (last phrase)
+    const onEnd1 = vi.mocked(speakMandarin).mock.calls[1][1] as () => void
+    act(() => { onEnd1() })
+    act(() => { vi.advanceTimersByTime(1000) })
+
+    // Loop: should be back at index 0 and speaking again
+    await waitFor(() => expect(result.current.currentIndex).toBe(0))
+    expect(vi.mocked(speakMandarin).mock.calls.length).toBeGreaterThanOrEqual(3)
+  })
+
   it('startSession logs error when fetch fails', async () => {
     vi.mocked(fetchPhrasesBySeed).mockRejectedValueOnce(new Error('network error'))
     const { result } = renderHook(() => useDrilling())
