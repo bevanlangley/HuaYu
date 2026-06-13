@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, Library, Zap } from 'lucide-react'
+import { BookOpen, BrainCircuit, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { to: '/seeds', icon: BookOpen, label: 'Seeds' },
-  { to: '/phrases', icon: Library, label: 'Phrases' },
   { to: '/drill', icon: Zap, label: 'Drill' },
+  { to: '/recall', icon: BrainCircuit, label: 'Recall' },
 ]
 
 export function BottomNav() {

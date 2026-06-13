@@ -10,8 +10,8 @@ import { Spinner } from '@/components/ui/Spinner'
 
 const SeedsList = lazy(() => import('@/features/seeds/SeedsList').then(m => ({ default: m.SeedsList })))
 const SeedDetail = lazy(() => import('@/features/seeds/SeedDetail').then(m => ({ default: m.SeedDetail })))
-const GlobalPhrases = lazy(() => import('@/features/phrases/GlobalPhrases').then(m => ({ default: m.GlobalPhrases })))
 const DrillingMode = lazy(() => import('@/features/drilling/DrillingMode').then(m => ({ default: m.DrillingMode })))
+const RecallPage = lazy(() => import('@/features/recall/RecallPage').then(m => ({ default: m.RecallPage })))
 
 function PageLoader() {
   return (
@@ -49,18 +49,18 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: 'phrases',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <GlobalPhrases />
-          </Suspense>
-        ),
-      },
-      {
         path: 'drill',
         element: (
           <Suspense fallback={<PageLoader />}>
             <DrillingMode />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'recall',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <RecallPage />
           </Suspense>
         ),
       },
