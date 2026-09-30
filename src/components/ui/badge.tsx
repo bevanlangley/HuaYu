@@ -9,9 +9,11 @@ const badgeVariants = cva(
       variant: {
         tag: 'bg-secondary-100 text-secondary-500',
         count: 'bg-grey-100 text-grey-600 dark:bg-grey-700 dark:text-grey-300',
-        success: 'bg-[#d1fae5] text-[#065f46] dark:bg-[#065f46] dark:text-[#d1fae5]',
-        warning: 'bg-[#fef3c7] text-[#92400e] dark:bg-[#92400e] dark:text-[#fef3c7]',
-        error: 'bg-[#fee2e2] text-[#991b1b] dark:bg-[#991b1b] dark:text-[#fee2e2]',
+        success: 'bg-success-bg text-success-text dark:bg-success-bg-dark dark:text-success-text-dark',
+        warning: 'bg-warning-bg text-warning-text dark:bg-warning-bg-dark dark:text-warning-text-dark',
+        error: 'bg-error-bg text-error-text dark:bg-error-bg-dark dark:text-error-text-dark',
+        info: 'bg-info-bg text-info-text dark:bg-info-bg-dark dark:text-info-text-dark',
+        'qa-answer': 'bg-qa-answer-bg text-qa-answer-text',
       },
     },
     defaultVariants: {

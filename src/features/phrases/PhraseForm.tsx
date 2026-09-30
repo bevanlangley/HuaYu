@@ -81,7 +81,7 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
               {...register('mandarin')}
             />
             {errors.mandarin && (
-              <p id="phrase-mandarin-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="phrase-mandarin-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.mandarin.message}
               </p>
             )}
@@ -97,7 +97,7 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
               {...register('pinyin')}
             />
             {errors.pinyin && (
-              <p id="phrase-pinyin-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="phrase-pinyin-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.pinyin.message}
               </p>
             )}
@@ -113,7 +113,7 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
               {...register('english')}
             />
             {errors.english && (
-              <p id="phrase-english-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="phrase-english-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.english.message}
               </p>
             )}

@@ -46,7 +46,7 @@ export function LoginPage() {
               {...register('email')}
             />
             {errors.email && (
-              <p id="login-email-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="login-email-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.email.message}
               </p>
             )}
@@ -63,7 +63,7 @@ export function LoginPage() {
               {...register('password')}
             />
             {errors.password && (
-              <p id="login-password-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="login-password-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.password.message}
               </p>
             )}

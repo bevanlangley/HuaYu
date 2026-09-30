@@ -9,7 +9,7 @@ export function OfflineBanner() {
   return (
     <div
       role="alert"
-      className="flex items-center justify-center gap-2 bg-[#fef3c7] px-4 py-2 text-sm text-[#92400e] dark:bg-[#92400e] dark:text-[#fef3c7]"
+      className="flex items-center justify-center gap-2 bg-warning-bg px-4 py-2 text-sm text-warning-text dark:bg-warning-bg-dark dark:text-warning-text-dark"
     >
       <WifiOff className="h-4 w-4 shrink-0" />
       <span>You&apos;re offline. Changes will not be saved until you reconnect.</span>

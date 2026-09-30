@@ -47,12 +47,24 @@ Configure all tokens in `tailwind.config.js` and as CSS variables in `src/index.
 | Warning | `#fef3c7` | `#92400e` | `#92400e` | `#fef3c7` |
 | Error | `#fee2e2` | `#991b1b` | `#991b1b` | `#fee2e2` |
 | Info | `#dbeafe` | `#1e40af` | `#1e40af` | `#dbeafe` |
+| qa-answer | `#ede9fe` | `#5b21b6` | *(no dark variant)* | *(no dark variant)* |
+
+Tokens: `success-bg`/`success-text` (+ `-dark` suffix for dark mode), same pattern for
+`warning`, `error`, `info`. `qa-answer-bg`/`qa-answer-text` (light mode only — used for the Q&A
+answer badge, which doesn't currently need a dark variant).
+
+**Error text (dark, inline validation):** `error-text-dark-alt` = `#fca5a5`. Used for inline
+form-validation error text and destructive dropdown-menu items in dark mode
+(`text-error-text dark:text-error-text-dark-alt`) — deliberately distinct from the badge/banner's
+dark error pair (`error-text-dark` = `#fee2e2`), since the two render differently by design;
+don't unify them.
 
 ### Color Rules
 - `primary-500` (light) / `primary-400` (dark) for single main CTA per view only
 - Amber tokens: tags/categorisation only
 - Semantic red: genuine errors only — never for cancel or non-dangerous destructive actions
-- Never hardcode color values — always use tokens
+- Never hardcode color values — always use tokens (exception: `main.tsx`'s pre-mount env-var
+  guard, which runs before Tailwind's classes exist)
 
 ## Typography
 Fonts: **Inter** (Latin) + **Noto Sans TC** (Chinese) via Google Fonts.

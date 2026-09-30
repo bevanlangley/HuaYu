@@ -79,7 +79,7 @@ export function SeedForm({ open, onClose, seed, onSaved }: SeedFormProps) {
               {...register('name')}
             />
             {errors.name && (
-              <p id="seed-name-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="seed-name-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.name.message}
               </p>
             )}
@@ -96,7 +96,7 @@ export function SeedForm({ open, onClose, seed, onSaved }: SeedFormProps) {
               {...register('source_url')}
             />
             {errors.source_url && (
-              <p id="seed-url-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="seed-url-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.source_url.message}
               </p>
             )}
@@ -112,7 +112,7 @@ export function SeedForm({ open, onClose, seed, onSaved }: SeedFormProps) {
               {...register('tag')}
             />
             {errors.tag && (
-              <p id="seed-tag-error" className="text-xs text-[#991b1b] dark:text-[#fca5a5]">
+              <p id="seed-tag-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.tag.message}
               </p>
             )}

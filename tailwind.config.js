@@ -33,6 +33,35 @@ export default {
           800: '#1f2937',
           900: '#111827',
         },
+        success: {
+          bg: '#d1fae5',
+          text: '#065f46',
+          'bg-dark': '#065f46',
+          'text-dark': '#d1fae5',
+        },
+        warning: {
+          bg: '#fef3c7',
+          text: '#92400e',
+          'bg-dark': '#92400e',
+          'text-dark': '#fef3c7',
+        },
+        error: {
+          bg: '#fee2e2',
+          text: '#991b1b',
+          'bg-dark': '#991b1b',
+          'text-dark': '#fee2e2',
+          'text-dark-alt': '#fca5a5',
+        },
+        info: {
+          bg: '#dbeafe',
+          text: '#1e40af',
+          'bg-dark': '#1e40af',
+          'text-dark': '#dbeafe',
+        },
+        'qa-answer': {
+          bg: '#ede9fe',
+          text: '#5b21b6',
+        },
         // Semantic colours as CSS-variable-backed tokens for shadcn compatibility
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

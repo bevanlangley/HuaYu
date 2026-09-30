@@ -82,7 +82,7 @@ export function SeedCard({ seed, onEdit, onDeleted }: SeedCardProps) {
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleDelete}
-              className="text-[#991b1b] focus:text-[#991b1b] dark:text-[#fca5a5] dark:focus:text-[#fca5a5]"
+              className="text-error-text focus:text-error-text dark:text-error-text-dark-alt dark:focus:text-error-text-dark-alt"
             >
               <Trash2 className="h-4 w-4" />
               Delete
