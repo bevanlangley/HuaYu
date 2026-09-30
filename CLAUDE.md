@@ -71,7 +71,7 @@ HuaYu/
 │   └── features/
 │       ├── auth/            # LoginPage, RequireAuth (route gate)
 │       ├── seeds/           # SeedsList, SeedCard, SeedForm (modal)
-│       ├── phrases/         # PhrasesList, PhraseCard, PhraseForm (modal), GlobalPhrases
+│       ├── phrases/         # PhrasesList, PhraseCard, PhraseForm (modal)
 │       └── drilling/        # DrillingMode, DrillingControls
 ├── supabase/migrations/     # SQL migrations (RLS policies, schema changes)
 ```
