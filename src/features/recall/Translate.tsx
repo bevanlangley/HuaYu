@@ -7,7 +7,7 @@ import { speakMandarin } from '@/lib/tts'
 import { useTts } from '@/context/TtsContext'
 import { useRecall } from './useRecall'
 
-export function RecallPage() {
+export function Translate() {
   const [seedId, setSeedId] = useState<string | null>(null)
   const [random, setRandom] = useState(true)
 

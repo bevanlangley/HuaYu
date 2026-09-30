@@ -11,7 +11,9 @@ import { Spinner } from '@/components/ui/Spinner'
 const SeedsList = lazy(() => import('@/features/seeds/SeedsList').then(m => ({ default: m.SeedsList })))
 const SeedDetail = lazy(() => import('@/features/seeds/SeedDetail').then(m => ({ default: m.SeedDetail })))
 const DrillingMode = lazy(() => import('@/features/drilling/DrillingMode').then(m => ({ default: m.DrillingMode })))
-const RecallPage = lazy(() => import('@/features/recall/RecallPage').then(m => ({ default: m.RecallPage })))
+const RecallLayout = lazy(() => import('@/features/recall/RecallLayout').then(m => ({ default: m.RecallLayout })))
+const Translate = lazy(() => import('@/features/recall/Translate').then(m => ({ default: m.Translate })))
+const QaPage = lazy(() => import('@/features/recall/QaPage').then(m => ({ default: m.QaPage })))
 
 function PageLoader() {
   return (
@@ -60,9 +62,28 @@ const router = createBrowserRouter([
         path: 'recall',
         element: (
           <Suspense fallback={<PageLoader />}>
-            <RecallPage />
+            <RecallLayout />
           </Suspense>
         ),
+        children: [
+          { index: true, element: <Navigate to="translate" replace /> },
+          {
+            path: 'translate',
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <Translate />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'qa',
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <QaPage />
+              </Suspense>
+            ),
+          },
+        ],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

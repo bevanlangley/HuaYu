@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { RecallPage } from './RecallPage'
+import { Translate } from './Translate'
 
 vi.mock('./useRecall', () => ({
   useRecall: vi.fn(),
@@ -52,11 +52,11 @@ function mockHook(overrides = {}) {
 const renderPage = () =>
   render(
     <MemoryRouter>
-      <RecallPage />
+      <Translate />
     </MemoryRouter>
   )
 
-describe('RecallPage', () => {
+describe('Translate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHook()
