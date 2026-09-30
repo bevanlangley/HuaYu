@@ -146,7 +146,7 @@ export function DrillingMode() {
               </>
             )}
 
-            <Button onClick={handleStart} disabled={phrasesLoading} className="self-start">
+            <Button onClick={handleStart} disabled={phrasesLoading || seedsLoading} className="self-start">
               {phrasesLoading ? 'Loading…' : 'Start'}
             </Button>
           </div>

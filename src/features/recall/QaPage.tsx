@@ -74,78 +74,57 @@ export function QaPage() {
 
         {!sessionActive && (
           <div className="flex flex-col gap-4 p-4 bg-grey-100 dark:bg-grey-800 rounded-lg">
-            {seedsLoading ? (
-              <>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-14" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-14" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-9 flex-1" />
-                    <Skeleton className="h-9 flex-1" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-24" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-9 flex-1" />
-                    <Skeleton className="h-9 flex-1" />
-                  </div>
-                </div>
-                <Skeleton className="h-10 w-32" />
-              </>
-            ) : (
-              <>
-                {/* Source */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium leading-none">Source</span>
-                  <select
-                    value={seedId ?? 'all'}
-                    onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
-                    className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
-                  >
-                    <option value="all">All seeds</option>
-                    {seeds.map((s) => (
-                      <option key={s.id} value={s.id} disabled={s.exchangeCount === 0}>
-                        {s.name} ({s.exchangeCount})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Source */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium leading-none">Source</span>
+              {seedsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <select
+                  value={seedId ?? 'all'}
+                  onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
+                  className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
+                >
+                  <option value="all">All seeds</option>
+                  {seeds.map((s) => (
+                    <option key={s.id} value={s.id} disabled={s.exchangeCount === 0}>
+                      {s.name} ({s.exchangeCount})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-                {/* Order */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium leading-none">Order</span>
-                  <div className="flex gap-2">
-                    <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
-                      In order
-                    </Button>
-                    <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
-                      Random
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Display text */}
-                <div className="flex flex-col gap-2">
-                  <span className="text-sm font-medium leading-none">Display text</span>
-                  <div className="flex gap-2">
-                    <Button variant={displayText ? 'default' : 'ghost'} onClick={() => setDisplayText(true)}>
-                      On
-                    </Button>
-                    <Button variant={!displayText ? 'default' : 'ghost'} onClick={() => setDisplayText(false)}>
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <Button onClick={handleStart} disabled={exchangesLoading} className="self-start">
-                  {exchangesLoading ? 'Loading…' : 'Start'}
+            {/* Order */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium leading-none">Order</span>
+              <div className="flex gap-2">
+                <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
+                  In order
                 </Button>
-              </>
-            )}
+                <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
+                  Random
+                </Button>
+              </div>
+            </div>
+
+            {/* Display text */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium leading-none">Display text</span>
+              <button
+                id="displayText"
+                role="switch"
+                aria-checked={displayText}
+                onClick={() => setDisplayText((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${displayText ? 'bg-primary-500' : 'bg-grey-300 dark:bg-grey-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${displayText ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <Button onClick={handleStart} disabled={seedsLoading || exchangesLoading} className="self-start">
+              {exchangesLoading ? 'Loading…' : 'Start'}
+            </Button>
           </div>
         )}
 

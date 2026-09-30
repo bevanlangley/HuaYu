@@ -114,13 +114,28 @@ describe('QaPage', () => {
     expect(screen.getByRole('combobox')).toHaveValue('all')
   })
 
-  it('shows a settings-panel skeleton instead of empty controls while seeds are loading', () => {
+  it('skeletons only the Source field while seeds are loading, keeping Order/Display text/Start visible', () => {
     mockHook({ seedsLoading: true })
     renderPage()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^start$/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^random$/i })).not.toBeInTheDocument()
-    expect(screen.queryByText('Source')).not.toBeInTheDocument()
+    expect(screen.getByText('Source')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^in order$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^random$/i })).toBeInTheDocument()
+    expect(screen.getByRole('switch')).toBeInTheDocument()
+  })
+
+  it('disables Start while seeds are loading', () => {
+    mockHook({ seedsLoading: true })
+    renderPage()
+    expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled()
+  })
+
+  it('toggles the Display text switch aria-checked state when clicked', () => {
+    renderPage()
+    const toggle = screen.getByRole('switch')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
   })
 
   it('calls startSession with seedId null and the default Random order when Start is clicked without changing the source', async () => {
@@ -169,7 +184,7 @@ describe('QaPage', () => {
 
   it('hides the Question Mandarin/Pinyin pre-reveal when Display text is toggled off, leaving only Replay and Reveal', () => {
     const { rerender } = renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /^off$/i }))
+    fireEvent.click(screen.getByRole('switch'))
     mockHook({
       sessionActive: true,
       exchanges: [singleAnswerExchange],
@@ -188,7 +203,7 @@ describe('QaPage', () => {
 
   it('shows the Question Mandarin/Pinyin/English on reveal regardless of the Display text setting', () => {
     const { rerender } = renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /^off$/i }))
+    fireEvent.click(screen.getByRole('switch'))
     mockHook({
       sessionActive: true,
       exchanges: [singleAnswerExchange],

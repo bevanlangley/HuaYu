@@ -67,13 +67,19 @@ describe('Translate', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
   })
 
-  it('shows a settings-panel skeleton instead of empty controls while seeds are loading', () => {
+  it('skeletons only the Source field while seeds are loading, keeping Order/Start visible', () => {
     mockHook({ seedsLoading: true })
     renderPage()
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /start/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^random$/i })).not.toBeInTheDocument()
-    expect(screen.queryByText('Source')).not.toBeInTheDocument()
+    expect(screen.getByText('Source')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^in order$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^random$/i })).toBeInTheDocument()
+  })
+
+  it('disables Start while seeds are loading', () => {
+    mockHook({ seedsLoading: true })
+    renderPage()
+    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled()
   })
 
   it('calls startSession when Start is clicked', async () => {

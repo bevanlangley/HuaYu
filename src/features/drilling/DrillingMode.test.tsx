@@ -70,6 +70,12 @@ describe('DrillingMode', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
   })
 
+  it('disables Start while seeds are loading', () => {
+    mockHook({ seedsLoading: true })
+    renderPage()
+    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled()
+  })
+
   it('calls startSession with config when Start is clicked', async () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /start/i }))
