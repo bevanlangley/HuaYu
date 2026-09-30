@@ -8,3 +8,9 @@ export const phraseSchema = z.object({
 })
 
 export type PhraseFormValues = z.infer<typeof phraseSchema>
+
+export const attachToQuestionSchema = z.object({
+  question_id: z.string(),
+})
+
+export type AttachToQuestionFormValues = z.infer<typeof attachToQuestionSchema>

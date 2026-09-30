@@ -19,6 +19,7 @@ const mockQuestion = {
   pinyin: 'nǐ jīntiān zěnmeyàng?',
   english: 'How are you today?',
   phrase_type: 'question' as const,
+  question_id: null,
   created_at: '2024-01-01',
 }
 

@@ -105,6 +105,59 @@ export async function deletePhrase(id: string): Promise<void> {
   logger.info('Phrase deleted', { id })
 }
 
+export async function fetchQuestionsBySeed(seedId: string): Promise<Phrase[]> {
+  logger.info('Fetching questions for seed', { seedId })
+  const { data, error } = await supabase
+    .from('phrases')
+    .select('*')
+    .eq('seed_id', seedId)
+    .eq('phrase_type', 'question')
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    logger.error('Failed to fetch questions', error)
+    throw error
+  }
+  logger.info('Questions fetched', { count: data?.length })
+  return data ?? []
+}
+
+export async function attachAnswerToQuestion(
+  answerId: string,
+  questionId: string | null
+): Promise<Phrase> {
+  logger.info('Attaching answer to question', { answerId, questionId })
+  const { data, error } = await supabase
+    .from('phrases')
+    .update({ question_id: questionId })
+    .eq('id', answerId)
+    .select()
+    .single()
+
+  if (error) {
+    logger.error('Failed to attach answer to question', error)
+    throw error
+  }
+  logger.info('Answer attached to question', { answerId, questionId })
+  return data
+}
+
+// A Question is unpaired when nothing points at it; an Answer is unpaired when it has no
+// question_id. Statements never participate in pairing.
+export function isPhraseUnpaired(phrase: Phrase, allPhrases: Phrase[]): boolean {
+  if (phrase.phrase_type === 'question') {
+    return !allPhrases.some(p => p.question_id === phrase.id)
+  }
+  if (phrase.phrase_type === 'answer') {
+    return phrase.question_id === null
+  }
+  return false
+}
+
+export function countUnpaired(phrases: Phrase[]): number {
+  return phrases.filter(p => isPhraseUnpaired(p, phrases)).length
+}
+
 export async function fetchAllPhrasesUnpaginated(): Promise<Phrase[]> {
   logger.info('Fetching all phrases unpaginated')
   const { data, error } = await supabase

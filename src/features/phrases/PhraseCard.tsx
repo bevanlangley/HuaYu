@@ -1,6 +1,8 @@
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, Link2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { deletePhrase } from '@/features/phrases/phrasesService'
+import { AttachToQuestionDialog } from '@/features/phrases/AttachToQuestionDialog'
 import { AudioPlayButton } from '@/components/ui/AudioPlayButton'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import {
@@ -14,8 +16,10 @@ import type { Phrase, PhraseType } from '@/lib/database.types'
 
 interface PhraseCardProps {
   phrase: Phrase
+  isUnpaired: boolean
   onEdit: (phrase: Phrase) => void
   onDeleted: (id: string) => void
+  onUpdated: (phrase: Phrase) => void
 }
 
 const PHRASE_TYPE_BADGE: Record<PhraseType, { label: string; variant: BadgeProps['variant'] }> = {
@@ -24,8 +28,9 @@ const PHRASE_TYPE_BADGE: Record<PhraseType, { label: string; variant: BadgeProps
   statement: { label: 'Statement', variant: 'count' },
 }
 
-export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
+export function PhraseCard({ phrase, isUnpaired, onEdit, onDeleted, onUpdated }: PhraseCardProps) {
   const { openConfirmDialog } = useConfirmDialog()
+  const [attachDialogOpen, setAttachDialogOpen] = useState(false)
   const typeBadge = PHRASE_TYPE_BADGE[phrase.phrase_type]
 
   async function handleDelete() {
@@ -51,9 +56,15 @@ export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
     <div className="group rounded-lg border border-grey-200 bg-white p-4 dark:border-grey-700 dark:bg-grey-800">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <Badge variant={typeBadge.variant} className="mb-1">
-            {typeBadge.label}
-          </Badge>
+          <div className="mb-1 flex items-center gap-1.5">
+            <Badge variant={typeBadge.variant}>{typeBadge.label}</Badge>
+            {isUnpaired && (
+              <AlertTriangle
+                className="h-4 w-4 text-warning-text dark:text-warning-text-dark"
+                aria-label="Unpaired — does not appear in Q&A"
+              />
+            )}
+          </div>
           <p lang="zh-TW" className="text-base font-medium text-grey-800 dark:text-grey-100">
             {phrase.mandarin}
           </p>
@@ -75,6 +86,12 @@ export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
                 <Pencil className="h-4 w-4" />
                 Edit
               </DropdownMenuItem>
+              {phrase.phrase_type === 'answer' && (
+                <DropdownMenuItem onClick={() => setAttachDialogOpen(true)}>
+                  <Link2 className="h-4 w-4" />
+                  Attach to question
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={handleDelete}
                 className="text-error-text focus:text-error-text dark:text-error-text-dark-alt dark:focus:text-error-text-dark-alt"
@@ -86,6 +103,15 @@ export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
           </DropdownMenu>
         </div>
       </div>
+
+      {attachDialogOpen && (
+        <AttachToQuestionDialog
+          open={attachDialogOpen}
+          phrase={phrase}
+          onClose={() => setAttachDialogOpen(false)}
+          onAttached={onUpdated}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { phraseSchema } from './phrases'
+import { phraseSchema, attachToQuestionSchema } from './phrases'
 
 describe('phraseSchema', () => {
   it('accepts a valid phrase', () => {
@@ -86,5 +86,17 @@ describe('phraseSchema', () => {
       phrase_type: 'greeting',
     })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('attachToQuestionSchema', () => {
+  it('accepts a question id', () => {
+    const result = attachToQuestionSchema.safeParse({ question_id: 'q1' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts an empty string (None)', () => {
+    const result = attachToQuestionSchema.safeParse({ question_id: '' })
+    expect(result.success).toBe(true)
   })
 })

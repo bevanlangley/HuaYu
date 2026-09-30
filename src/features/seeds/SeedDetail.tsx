@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
-import { fetchPhrasesBySeed } from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed, isPhraseUnpaired, countUnpaired } from '@/features/phrases/phrasesService'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -78,6 +78,8 @@ export function SeedDetail() {
 
   const totalPages = Math.max(1, Math.ceil(phrases.length / PAGE_SIZE))
   const paginated = phrases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const unpairedCount = countUnpaired(phrases)
+  const unpairedBadge = unpairedCount > 0 && <Badge variant="warning">{unpairedCount} unpaired</Badge>
 
   const addButton = (
     <Button size="sm" onClick={openCreate}>
@@ -119,6 +121,7 @@ export function SeedDetail() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant="count">{phrases.length} phrase{phrases.length !== 1 ? 's' : ''}</Badge>
                 {seed?.tag && <Badge variant="tag">{seed.tag}</Badge>}
+                {unpairedBadge}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -144,6 +147,7 @@ export function SeedDetail() {
             <ArrowLeft className="h-4 w-4" />
             Seeds
           </Link>
+          {unpairedBadge}
           {phrases.length > 0 && (
             <Button variant="secondary" size="sm" className="ml-auto" asChild>
               <Link to="/drill" state={{ seedId: seed?.id }}>
@@ -173,8 +177,10 @@ export function SeedDetail() {
                 <PhraseCard
                   key={phrase.id}
                   phrase={phrase}
+                  isUnpaired={isPhraseUnpaired(phrase, phrases)}
                   onEdit={handlePhraseEdit}
                   onDeleted={handlePhraseDeleted}
+                  onUpdated={handlePhraseSaved}
                 />
               ))}
             </div>
