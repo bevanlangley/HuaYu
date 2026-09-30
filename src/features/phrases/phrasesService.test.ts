@@ -6,7 +6,10 @@ import {
   attachAnswerToQuestion,
   isPhraseUnpaired,
   countUnpaired,
+  countLinkedAnswers,
   createPhrase,
+  updatePhrase,
+  unlinkAnswersFromQuestion,
 } from './phrasesService'
 import type { Phrase } from '@/lib/database.types'
 
@@ -224,6 +227,92 @@ describe('attachAnswerToQuestion', () => {
     vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
 
     await expect(attachAnswerToQuestion('a1', 'q-other-seed')).rejects.toMatchObject({ message: 'FK violation' })
+  })
+})
+
+describe('updatePhrase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('updates without touching question_id by default', async () => {
+    const updated = makePhrase({ id: 'p1', phrase_type: 'statement' })
+    const mockSingle = vi.fn().mockResolvedValue({ data: updated, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    const values = { mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', phrase_type: 'statement' as const }
+    await updatePhrase('p1', values)
+
+    expect(mockUpdate).toHaveBeenCalledWith(values)
+    expect(mockEq).toHaveBeenCalledWith('id', 'p1')
+  })
+
+  it('clears question_id when clearQuestionId is passed, for an Answer retyped away', async () => {
+    const updated = makePhrase({ id: 'a1', phrase_type: 'statement', question_id: null })
+    const mockSingle = vi.fn().mockResolvedValue({ data: updated, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    const values = { mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', phrase_type: 'statement' as const }
+    await updatePhrase('a1', values, { clearQuestionId: true })
+
+    expect(mockUpdate).toHaveBeenCalledWith({ ...values, question_id: null })
+  })
+
+  it('throws when supabase errors', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockEq = vi.fn().mockReturnValue({ select: mockSelect })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    await expect(
+      updatePhrase('p1', { mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', phrase_type: 'statement' })
+    ).rejects.toMatchObject({ message: 'DB error' })
+  })
+})
+
+describe('unlinkAnswersFromQuestion', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('nulls question_id on every phrase pointing at the question', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: null })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    await unlinkAnswersFromQuestion('q1')
+
+    expect(supabase.from).toHaveBeenCalledWith('phrases')
+    expect(mockUpdate).toHaveBeenCalledWith({ question_id: null })
+    expect(mockEq).toHaveBeenCalledWith('question_id', 'q1')
+  })
+
+  it('throws when supabase errors', async () => {
+    const mockEq = vi.fn().mockResolvedValue({ error: { message: 'DB error' } })
+    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq })
+    vi.mocked(supabase.from).mockReturnValue({ update: mockUpdate } as any)
+
+    await expect(unlinkAnswersFromQuestion('q1')).rejects.toMatchObject({ message: 'DB error' })
+  })
+})
+
+describe('countLinkedAnswers', () => {
+  it('counts answers whose question_id points at the given question', () => {
+    const phrases = [
+      makePhrase({ id: 'q1', phrase_type: 'question' }),
+      makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1' }),
+      makePhrase({ id: 'a2', phrase_type: 'answer', question_id: 'q1' }),
+      makePhrase({ id: 'a3', phrase_type: 'answer', question_id: 'q-other' }),
+    ]
+    expect(countLinkedAnswers('q1', phrases)).toBe(2)
+  })
+
+  it('returns 0 when nothing points at the question', () => {
+    const phrases = [makePhrase({ id: 'q1', phrase_type: 'question' })]
+    expect(countLinkedAnswers('q1', phrases)).toBe(0)
   })
 })
 

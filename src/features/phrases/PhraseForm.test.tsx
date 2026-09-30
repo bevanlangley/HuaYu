@@ -5,12 +5,19 @@ import { PhraseForm } from './PhraseForm'
 vi.mock('./phrasesService', () => ({
   createPhrase: vi.fn(),
   updatePhrase: vi.fn(),
+  unlinkAnswersFromQuestion: vi.fn(),
+  describeLinkedAnswerCount: (count: number) => `${count} linked answer${count === 1 ? '' : 's'}`,
 }))
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
+const { mockOpenConfirmDialog } = vi.hoisted(() => ({ mockOpenConfirmDialog: vi.fn() }))
+vi.mock('@/context/ConfirmDialogContext', () => ({
+  useConfirmDialog: () => ({ openConfirmDialog: mockOpenConfirmDialog }),
+}))
 
-import { createPhrase, updatePhrase } from './phrasesService'
+import { createPhrase, updatePhrase, unlinkAnswersFromQuestion } from './phrasesService'
+import { toast } from 'sonner'
 
 const mockQuestion = {
   id: 'p1',
@@ -26,6 +33,7 @@ const mockQuestion = {
 describe('PhraseForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockOpenConfirmDialog.mockReset()
   })
 
   it('defaults the Phrase Type selector to Statement on create', () => {
@@ -86,6 +94,211 @@ describe('PhraseForm', () => {
         expect.objectContaining({ phrase_type: 'statement' })
       )
     )
+  })
+
+  describe('retype guardrails', () => {
+    const mockAnswer = {
+      id: 'a1',
+      seed_id: 's1',
+      mandarin: '我很好',
+      pinyin: 'wǒ hěn hǎo',
+      english: "I'm well",
+      phrase_type: 'answer' as const,
+      question_id: 'p1',
+      created_at: '2024-01-02',
+    }
+    const mockStatement = {
+      id: 's-1',
+      seed_id: 's1',
+      mandarin: '你好',
+      pinyin: 'nǐ hǎo',
+      english: 'Hello',
+      phrase_type: 'statement' as const,
+      question_id: null,
+      created_at: '2024-01-03',
+    }
+
+    it('confirms before retyping a Question with linked answers away from question', async () => {
+      mockOpenConfirmDialog.mockResolvedValue(false)
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={2}
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'statement' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() =>
+        expect(mockOpenConfirmDialog).toHaveBeenCalledWith(
+          expect.objectContaining({
+            description:
+              "This question has 2 linked answers. Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?",
+          })
+        )
+      )
+      expect(updatePhrase).not.toHaveBeenCalled()
+    })
+
+    it('does not retype when the confirm dialog is cancelled', async () => {
+      mockOpenConfirmDialog.mockResolvedValue(false)
+      const onClose = vi.fn()
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={1}
+          onClose={onClose}
+          onSaved={vi.fn()}
+        />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'answer' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() => expect(mockOpenConfirmDialog).toHaveBeenCalled())
+      expect(updatePhrase).not.toHaveBeenCalled()
+      expect(unlinkAnswersFromQuestion).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('unlinks answers after confirming a retype away from a linked Question', async () => {
+      mockOpenConfirmDialog.mockResolvedValue(true)
+      vi.mocked(updatePhrase).mockResolvedValue({ ...mockQuestion, phrase_type: 'statement' })
+      const onSaved = vi.fn()
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={2}
+          onClose={vi.fn()}
+          onSaved={onSaved}
+        />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'statement' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() => expect(updatePhrase).toHaveBeenCalledWith('p1', expect.objectContaining({ phrase_type: 'statement' })))
+      expect(unlinkAnswersFromQuestion).toHaveBeenCalledWith('p1')
+      expect(onSaved).toHaveBeenCalled()
+    })
+
+    it('reports a distinct error and still closes when the retype succeeds but unlinking fails', async () => {
+      mockOpenConfirmDialog.mockResolvedValue(true)
+      const updatedQuestion = { ...mockQuestion, phrase_type: 'statement' as const }
+      vi.mocked(updatePhrase).mockResolvedValue(updatedQuestion)
+      vi.mocked(unlinkAnswersFromQuestion).mockRejectedValue(new Error('DB error'))
+      const onClose = vi.fn()
+      const onSaved = vi.fn()
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={2}
+          onClose={onClose}
+          onSaved={onSaved}
+        />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'statement' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() => expect(unlinkAnswersFromQuestion).toHaveBeenCalledWith('p1'))
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          'Phrase type changed, but linked answers could not be unlinked. Try again.'
+        )
+      )
+      expect(toast.success).not.toHaveBeenCalled()
+      // The retype write itself succeeded, so the caller still gets the update and the modal closes.
+      expect(onSaved).toHaveBeenCalledWith(updatedQuestion)
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('does not confirm when retyping a Question with 0 linked answers', async () => {
+      vi.mocked(updatePhrase).mockResolvedValue({ ...mockQuestion, phrase_type: 'statement' })
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={0}
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'statement' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() => expect(updatePhrase).toHaveBeenCalled())
+      expect(mockOpenConfirmDialog).not.toHaveBeenCalled()
+      expect(unlinkAnswersFromQuestion).not.toHaveBeenCalled()
+    })
+
+    it('silently clears question_id when retyping an Answer away from answer', async () => {
+      vi.mocked(updatePhrase).mockResolvedValue({ ...mockAnswer, phrase_type: 'statement', question_id: null })
+      render(
+        <PhraseForm open seedId="s1" phrase={mockAnswer} onClose={vi.fn()} onSaved={vi.fn()} />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'statement' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() =>
+        expect(updatePhrase).toHaveBeenCalledWith(
+          'a1',
+          expect.objectContaining({ phrase_type: 'statement' }),
+          { clearQuestionId: true }
+        )
+      )
+      expect(mockOpenConfirmDialog).not.toHaveBeenCalled()
+      expect(unlinkAnswersFromQuestion).not.toHaveBeenCalled()
+    })
+
+    it('silently retypes a Statement to Question with no confirm and no question_id write', async () => {
+      vi.mocked(updatePhrase).mockResolvedValue({ ...mockStatement, phrase_type: 'question' })
+      render(
+        <PhraseForm open seedId="s1" phrase={mockStatement} onClose={vi.fn()} onSaved={vi.fn()} />
+      )
+      fireEvent.change(screen.getByLabelText(/phrase type/i), { target: { value: 'question' } })
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() =>
+        expect(updatePhrase).toHaveBeenCalledWith(
+          's-1',
+          expect.objectContaining({ phrase_type: 'question' })
+        )
+      )
+      expect(mockOpenConfirmDialog).not.toHaveBeenCalled()
+    })
+
+    it('does not confirm or clear question_id when saving without changing phrase_type', async () => {
+      vi.mocked(updatePhrase).mockResolvedValue(mockQuestion)
+      render(
+        <PhraseForm
+          open
+          seedId="s1"
+          phrase={mockQuestion}
+          linkedAnswerCount={3}
+          onClose={vi.fn()}
+          onSaved={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() =>
+        expect(updatePhrase).toHaveBeenCalledWith(
+          'p1',
+          expect.objectContaining({ phrase_type: 'question' })
+        )
+      )
+      expect(mockOpenConfirmDialog).not.toHaveBeenCalled()
+      expect(unlinkAnswersFromQuestion).not.toHaveBeenCalled()
+    })
   })
 
   describe('chained answer-authoring', () => {

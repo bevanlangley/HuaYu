@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, Link2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { deletePhrase } from '@/features/phrases/phrasesService'
+import { deletePhrase, describeLinkedAnswerCount } from '@/features/phrases/phrasesService'
 import { AttachToQuestionDialog } from '@/features/phrases/AttachToQuestionDialog'
 import { AudioPlayButton } from '@/components/ui/AudioPlayButton'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ import type { Phrase, PhraseType } from '@/lib/database.types'
 interface PhraseCardProps {
   phrase: Phrase
   isUnpaired: boolean
+  linkedAnswerCount?: number
   onEdit: (phrase: Phrase) => void
   onDeleted: (id: string) => void
   onUpdated: (phrase: Phrase) => void
@@ -28,15 +29,28 @@ const PHRASE_TYPE_BADGE: Record<PhraseType, { label: string; variant: BadgeProps
   statement: { label: 'Statement', variant: 'count' },
 }
 
-export function PhraseCard({ phrase, isUnpaired, onEdit, onDeleted, onUpdated }: PhraseCardProps) {
+export function PhraseCard({
+  phrase,
+  isUnpaired,
+  linkedAnswerCount = 0,
+  onEdit,
+  onDeleted,
+  onUpdated,
+}: PhraseCardProps) {
   const { openConfirmDialog } = useConfirmDialog()
   const [attachDialogOpen, setAttachDialogOpen] = useState(false)
   const typeBadge = PHRASE_TYPE_BADGE[phrase.phrase_type]
 
   async function handleDelete() {
+    // A Question with linked Answers has a side-effect on rows other than the one being
+    // edited (they become unpaired), so it gets a qualified warning; everything else keeps
+    // the existing unqualified copy.
+    const hasLinkedAnswers = phrase.phrase_type === 'question' && linkedAnswerCount > 0
     const confirmed = await openConfirmDialog({
       title: 'Delete phrase',
-      description: `Delete "${phrase.mandarin}" (${phrase.english})? This cannot be undone.`,
+      description: hasLinkedAnswers
+        ? `This question has ${describeLinkedAnswerCount(linkedAnswerCount)}. Deleting it will unlink them — they'll become unpaired and drop out of Q&A, but won't be deleted. This can't be undone.`
+        : `Delete "${phrase.mandarin}" (${phrase.english})? This cannot be undone.`,
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',
       variant: 'danger',

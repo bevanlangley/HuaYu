@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
-import { fetchPhrasesBySeed, isPhraseUnpaired, countUnpaired } from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed, isPhraseUnpaired, countUnpaired, countLinkedAnswers } from '@/features/phrases/phrasesService'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -66,14 +66,22 @@ export function SeedDetail() {
 
   function handlePhraseSaved(saved: Phrase) {
     setPhrases(prev => {
-      const exists = prev.find(p => p.id === saved.id)
-      if (exists) return prev.map(p => (p.id === saved.id ? saved : p))
-      return [...prev, saved]
+      const previous = prev.find(p => p.id === saved.id)
+      const updated = previous ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
+      // Retyping a Question away from `question` unlinks its Answers server-side; mirror that
+      // locally so their cards drop the link and pick up the unpaired warning immediately.
+      const retypedAwayFromQuestion = previous?.phrase_type === 'question' && saved.phrase_type !== 'question'
+      if (!retypedAwayFromQuestion) return updated
+      return updated.map(p => (p.question_id === saved.id ? { ...p, question_id: null } : p))
     })
   }
 
   function handlePhraseDeleted(id: string) {
-    setPhrases(prev => prev.filter(p => p.id !== id))
+    setPhrases(prev =>
+      prev
+        .filter(p => p.id !== id)
+        .map(p => (p.question_id === id ? { ...p, question_id: null } : p))
+    )
   }
 
   const totalPages = Math.max(1, Math.ceil(phrases.length / PAGE_SIZE))
@@ -178,6 +186,7 @@ export function SeedDetail() {
                   key={phrase.id}
                   phrase={phrase}
                   isUnpaired={isPhraseUnpaired(phrase, phrases)}
+                  linkedAnswerCount={phrase.phrase_type === 'question' ? countLinkedAnswers(phrase.id, phrases) : 0}
                   onEdit={handlePhraseEdit}
                   onDeleted={handlePhraseDeleted}
                   onUpdated={handlePhraseSaved}
@@ -199,6 +208,9 @@ export function SeedDetail() {
           onClose={() => setFormOpen(false)}
           seedId={seed.id}
           phrase={editingPhrase}
+          linkedAnswerCount={
+            editingPhrase?.phrase_type === 'question' ? countLinkedAnswers(editingPhrase.id, phrases) : 0
+          }
           onSaved={handlePhraseSaved}
         />
       )}

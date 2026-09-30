@@ -4,7 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { phraseSchema } from '@/lib/schemas/phrases'
 import type { PhraseFormData } from '@/features/phrases/phrasesService'
-import { createPhrase, updatePhrase } from '@/features/phrases/phrasesService'
+import {
+  createPhrase,
+  updatePhrase,
+  unlinkAnswersFromQuestion,
+  describeLinkedAnswerCount,
+} from '@/features/phrases/phrasesService'
+import { useConfirmDialog } from '@/context/ConfirmDialogContext'
 import type { Phrase } from '@/lib/database.types'
 import {
   Dialog,
@@ -22,6 +28,7 @@ interface PhraseFormProps {
   onClose: () => void
   seedId: string
   phrase?: Phrase | null
+  linkedAnswerCount?: number
   onSaved: (phrase: Phrase) => void
 }
 
@@ -40,8 +47,16 @@ const BLANK_ANSWER_VALUES: PhraseFormData = {
   phrase_type: 'answer',
 }
 
-export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFormProps) {
+export function PhraseForm({
+  open,
+  onClose,
+  seedId,
+  phrase,
+  linkedAnswerCount = 0,
+  onSaved,
+}: PhraseFormProps) {
   const isEdit = Boolean(phrase)
+  const { openConfirmDialog } = useConfirmDialog()
   const [step, setStep] = useState<Step>({ kind: 'form' })
   const {
     register,
@@ -67,14 +82,52 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
 
   async function onSubmit(values: PhraseFormData) {
     if (isEdit) {
+      const previousType = phrase!.phrase_type
+      const retypingAway = values.phrase_type !== previousType
+      // A destructive side-effect on a row other than the one being edited always gets a
+      // confirm dialog; a side-effect confined to this row (clearing its own question_id)
+      // does not — see PRD/13_Phrase_Types_And_QA.md "Editing an Existing Phrase's Type".
+      const unlinkingChildren = previousType === 'question' && retypingAway && linkedAnswerCount > 0
+      const clearingOwnLink = previousType === 'answer' && retypingAway
+
+      if (unlinkingChildren) {
+        const confirmed = await openConfirmDialog({
+          title: 'Change phrase type',
+          description: `This question has ${describeLinkedAnswerCount(linkedAnswerCount)}. Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?`,
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel',
+          variant: 'danger',
+        })
+        if (!confirmed) return
+      }
+
+      let saved: Phrase
       try {
-        const saved = await updatePhrase(phrase!.id, values)
-        toast.success('Phrase updated')
-        onSaved(saved)
-        onClose()
+        saved = clearingOwnLink
+          ? await updatePhrase(phrase!.id, values, { clearQuestionId: true })
+          : await updatePhrase(phrase!.id, values)
       } catch {
         toast.error('Could not update phrase. Try again.')
+        return
       }
+
+      if (unlinkingChildren) {
+        try {
+          await unlinkAnswersFromQuestion(phrase!.id)
+        } catch {
+          // The retype itself already succeeded — only the follow-up unlink failed. Report
+          // that distinctly rather than the generic "could not update" (which would be
+          // wrong) and still close, since re-submitting won't retry the unlink.
+          toast.error('Phrase type changed, but linked answers could not be unlinked. Try again.')
+          onSaved(saved)
+          onClose()
+          return
+        }
+      }
+
+      toast.success('Phrase updated')
+      onSaved(saved)
+      onClose()
       return
     }
 

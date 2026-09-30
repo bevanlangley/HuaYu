@@ -81,11 +81,16 @@ export async function createPhrase(
   return data
 }
 
-export async function updatePhrase(id: string, values: PhraseFormData): Promise<Phrase> {
+export async function updatePhrase(
+  id: string,
+  values: PhraseFormData,
+  opts: { clearQuestionId?: boolean } = {}
+): Promise<Phrase> {
   logger.info('Updating phrase', { id })
+  const payload = opts.clearQuestionId ? { ...values, question_id: null } : values
   const { data, error } = await supabase
     .from('phrases')
-    .update(values)
+    .update(payload)
     .eq('id', id)
     .select()
     .single()
@@ -96,6 +101,23 @@ export async function updatePhrase(id: string, values: PhraseFormData): Promise<
   }
   logger.info('Phrase updated', { id })
   return data
+}
+
+// Orphans every Answer linked to this Question (their own rows are otherwise untouched).
+// Used when a Question is retyped away from `question` while it still has linked Answers —
+// unlike a delete, there's no FK cascade to rely on since the Question row itself survives.
+export async function unlinkAnswersFromQuestion(questionId: string): Promise<void> {
+  logger.info('Unlinking answers from question', { questionId })
+  const { error } = await supabase
+    .from('phrases')
+    .update({ question_id: null })
+    .eq('question_id', questionId)
+
+  if (error) {
+    logger.error('Failed to unlink answers from question', error)
+    throw error
+  }
+  logger.info('Answers unlinked from question', { questionId })
 }
 
 export async function deletePhrase(id: string): Promise<void> {
@@ -160,6 +182,15 @@ export function isPhraseUnpaired(phrase: Phrase, allPhrases: Phrase[]): boolean 
 
 export function countUnpaired(phrases: Phrase[]): number {
   return phrases.filter(p => isPhraseUnpaired(p, phrases)).length
+}
+
+export function countLinkedAnswers(questionId: string, allPhrases: Phrase[]): number {
+  return allPhrases.filter(p => p.question_id === questionId).length
+}
+
+// Shared wording for the delete/retype confirm dialogs that name a linked-answer count.
+export function describeLinkedAnswerCount(count: number): string {
+  return `${count} linked answer${count === 1 ? '' : 's'}`
 }
 
 export async function fetchAllPhrasesUnpaginated(): Promise<Phrase[]> {
