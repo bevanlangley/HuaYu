@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import type { Phrase } from '@/lib/database.types'
+import type { Phrase, Exchange } from '@/lib/database.types'
 import type { z } from 'zod'
 import type { phraseSchema } from '@/lib/schemas/phrases'
 
@@ -115,6 +115,23 @@ export async function fetchQuestionsBySeed(seedId: string): Promise<Phrase[]> {
   }
   logger.info('Questions fetched', { count: data?.length })
   return data ?? []
+}
+
+// An Exchange is a Question with >=1 linked Answer. Statements and unpaired Questions/Answers
+// never form one — a Question with zero Answers is filtered out, and an Answer's question_id
+// only ever surfaces it as part of its Question's `answers`, never on its own.
+export async function fetchExchangesBySeed(seedId: string): Promise<Exchange[]> {
+  logger.info('Fetching exchanges for seed', { seedId })
+  const phrases = await fetchPhrasesBySeed(seedId)
+  const exchanges = phrases
+    .filter((p) => p.phrase_type === 'question')
+    .map((question) => ({
+      question,
+      answers: phrases.filter((p) => p.question_id === question.id),
+    }))
+    .filter((exchange) => exchange.answers.length > 0)
+  logger.info('Exchanges fetched', { seedId, count: exchanges.length })
+  return exchanges
 }
 
 export async function attachAnswerToQuestion(

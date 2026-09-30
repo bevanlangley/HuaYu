@@ -3,21 +3,81 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QaPage } from './QaPage'
 
-vi.mock('./qaService', () => ({
-  fetchSeedsWithExchangeCounts: vi.fn(),
+const mockSetCurrentlyPlaying = vi.fn()
+const mockSpeakMandarin = vi.fn().mockReturnValue(vi.fn())
+
+vi.mock('./useQa', () => ({
+  useQa: vi.fn(),
+}))
+vi.mock('@/lib/tts', () => ({
+  speakMandarin: (...args: unknown[]) => mockSpeakMandarin(...args),
 }))
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, signOut: vi.fn() }),
 }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/context/TtsContext', () => ({
+  useTts: () => ({ voiceStatus: 'zh-TW', currentlyPlaying: null, setCurrentlyPlaying: mockSetCurrentlyPlaying }),
+}))
 
-import { fetchSeedsWithExchangeCounts } from './qaService'
-import { toast } from 'sonner'
+import { useQa } from './useQa'
 
 const mockSeeds = [
-  { id: 's1', name: 'Taxi Conversations', tag: null, source_url: null, created_at: '2024-01-01', phraseCount: 5, exchangeCount: 4 },
+  { id: 's1', name: 'Taxi Conversations', tag: null, source_url: null, created_at: '2024-01-01', phraseCount: 5, exchangeCount: 2 },
   { id: 's2', name: 'Empty Seed', tag: null, source_url: null, created_at: '2024-01-02', phraseCount: 2, exchangeCount: 0 },
 ]
+
+function makePhrase(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'p1',
+    seed_id: 's1',
+    mandarin: '你今天怎麼樣？',
+    pinyin: 'nǐ jīntiān zěnmeyàng?',
+    english: 'How are you today?',
+    phrase_type: 'question' as const,
+    question_id: null,
+    created_at: '2024-01-01',
+    ...overrides,
+  }
+}
+
+const singleAnswerExchange = {
+  question: makePhrase({ id: 'q1' }),
+  answers: [makePhrase({ id: 'a1', mandarin: '我很好', pinyin: 'wǒ hěn hǎo', english: "I'm doing well", phrase_type: 'answer', question_id: 'q1' })],
+}
+
+const multiAnswerExchange = {
+  question: makePhrase({ id: 'q2' }),
+  answers: [
+    makePhrase({ id: 'a2', mandarin: '我很好', pinyin: 'wǒ hěn hǎo', english: "I'm doing well", phrase_type: 'answer', question_id: 'q2' }),
+    makePhrase({ id: 'a3', mandarin: '還不錯', pinyin: 'hái búcuò', english: 'Not bad', phrase_type: 'answer', question_id: 'q2' }),
+  ],
+}
+
+const mockStartSession = vi.fn()
+const mockStopSession = vi.fn()
+const mockReveal = vi.fn()
+const mockNext = vi.fn()
+const mockPrevious = vi.fn()
+
+function mockHook(overrides = {}) {
+  vi.mocked(useQa).mockReturnValue({
+    seeds: mockSeeds,
+    seedsLoading: false,
+    sessionActive: false,
+    exchanges: [],
+    exchangesLoading: false,
+    currentIndex: 0,
+    currentExchange: null as any,
+    isRevealed: false,
+    justRevealed: false,
+    startSession: mockStartSession,
+    stopSession: mockStopSession,
+    reveal: mockReveal,
+    next: mockNext,
+    previous: mockPrevious,
+    ...overrides,
+  })
+}
 
 const renderPage = () =>
   render(
@@ -29,44 +89,157 @@ const renderPage = () =>
 describe('QaPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(fetchSeedsWithExchangeCounts).mockResolvedValue(mockSeeds)
+    mockHook()
   })
 
-  it('renders seed options with exchange counts', async () => {
+  it('renders seed options with exchange counts', () => {
     renderPage()
-    await waitFor(() => expect(screen.getByText('Taxi Conversations (4)')).toBeInTheDocument())
+    expect(screen.getByText('Taxi Conversations (2)')).toBeInTheDocument()
     expect(screen.getByText('Empty Seed (0)')).toBeInTheDocument()
   })
 
-  it('disables zero-exchange seeds', async () => {
+  it('disables zero-exchange seeds', () => {
     renderPage()
-    await waitFor(() => expect(screen.getByText('Empty Seed (0)')).toBeInTheDocument())
     expect(screen.getByRole('option', { name: 'Empty Seed (0)' })).toBeDisabled()
-    expect(screen.getByRole('option', { name: 'Taxi Conversations (4)' })).not.toBeDisabled()
+    expect(screen.getByRole('option', { name: 'Taxi Conversations (2)' })).not.toBeDisabled()
   })
 
-  it('shows a Coming soon placeholder instead of a live session on Start', async () => {
+  it('disables Start until a seed is selected', () => {
     renderPage()
-    await waitFor(() => expect(screen.getByText('Taxi Conversations (4)')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled()
+  })
+
+  it('calls startSession with the selected seedId when Start is clicked', async () => {
+    renderPage()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 's1' } })
     fireEvent.click(screen.getByRole('button', { name: /start/i }))
-    expect(screen.getByText(/coming soon/i)).toBeInTheDocument()
+    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: 's1' }))
   })
 
-  it('defaults Order to Random', async () => {
+  it('shows Question Mandarin and Pinyin but withholds English before reveal', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+      isRevealed: false,
+      justRevealed: false,
+    })
     renderPage()
-    await waitFor(() => expect(screen.getByText('Taxi Conversations (4)')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'Random' })).toHaveClass('bg-primary-500')
+    expect(screen.getByText('你今天怎麼樣？')).toBeInTheDocument()
+    expect(screen.getByText('nǐ jīntiān zěnmeyàng?')).toBeInTheDocument()
+    expect(screen.queryByText('How are you today?')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reveal/i })).toBeInTheDocument()
   })
 
-  it('defaults Display text to On', async () => {
+  it('shows the progress indicator', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange, multiAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+    })
     renderPage()
-    await waitFor(() => expect(screen.getByText('Taxi Conversations (4)')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'On' })).toHaveClass('bg-primary-500')
+    expect(screen.getByText('1 / 2')).toBeInTheDocument()
   })
 
-  it('shows an error toast when seeds fail to load', async () => {
-    vi.mocked(fetchSeedsWithExchangeCounts).mockRejectedValue(new Error('network error'))
+  it('calls reveal when Reveal is clicked', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+      isRevealed: false,
+    })
     renderPage()
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not load seeds. Try again.'))
+    fireEvent.click(screen.getByRole('button', { name: /reveal/i }))
+    expect(mockReveal).toHaveBeenCalled()
+  })
+
+  it('reveals the Question English and every Answer Mandarin/Pinyin/English', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [multiAnswerExchange],
+      currentExchange: multiAnswerExchange,
+      currentIndex: 0,
+      isRevealed: true,
+      justRevealed: true,
+    })
+    renderPage()
+    expect(screen.getByText('How are you today?')).toBeInTheDocument()
+    expect(screen.getByText('我很好')).toBeInTheDocument()
+    expect(screen.getByText("I'm doing well")).toBeInTheDocument()
+    expect(screen.getByText('還不錯')).toBeInTheDocument()
+    expect(screen.getByText('Not bad')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /reveal/i })).not.toBeInTheDocument()
+  })
+
+  it('auto-plays the single linked Answer on reveal and renders no play button for it', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+      isRevealed: true,
+      justRevealed: true,
+    })
+    renderPage()
+    expect(mockSpeakMandarin).toHaveBeenCalledWith('我很好', expect.any(Function))
+    expect(screen.queryByRole('button', { name: /^play /i })).not.toBeInTheDocument()
+  })
+
+  it('does not auto-play when there are multiple linked Answers, and gives each its own play button', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [multiAnswerExchange],
+      currentExchange: multiAnswerExchange,
+      currentIndex: 0,
+      isRevealed: true,
+      justRevealed: true,
+    })
+    renderPage()
+    expect(mockSpeakMandarin).not.toHaveBeenCalledWith('我很好', expect.any(Function))
+    expect(mockSpeakMandarin).not.toHaveBeenCalledWith('還不錯', expect.any(Function))
+    const playButtons = screen.getAllByRole('button', { name: /^play /i })
+    expect(playButtons).toHaveLength(2)
+    fireEvent.click(playButtons[0])
+    fireEvent.click(playButtons[1])
+    expect(mockSpeakMandarin).toHaveBeenCalledWith('我很好', expect.any(Function))
+    expect(mockSpeakMandarin).toHaveBeenCalledWith('還不錯', expect.any(Function))
+  })
+
+  it('auto-plays the Question on mount while a session is active', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+    })
+    renderPage()
+    expect(mockSpeakMandarin).toHaveBeenCalledWith('你今天怎麼樣？', expect.any(Function))
+  })
+
+  it('disables Previous on the first exchange and Next on the last', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange, multiAnswerExchange],
+      currentExchange: multiAnswerExchange,
+      currentIndex: 1,
+    })
+    renderPage()
+    expect(screen.getByRole('button', { name: /previous/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
+  })
+
+  it('calls stopSession when Stop is clicked', () => {
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+    })
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /stop/i }))
+    expect(mockStopSession).toHaveBeenCalled()
   })
 })
