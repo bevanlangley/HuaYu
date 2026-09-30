@@ -60,43 +60,58 @@ export function Translate() {
 
         {!sessionActive && (
           <div className="flex flex-col gap-4 p-4 bg-grey-100 dark:bg-grey-800 rounded-lg">
-            {/* Source */}
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium leading-none">Source</span>
-              {seedsLoading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <select
-                  value={seedId ?? 'all'}
-                  onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
-                  className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
-                >
-                  <option value="all">All phrases</option>
-                  {seeds.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.phraseCount})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            {seedsLoading ? (
+              <>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-3 w-14" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-24" />
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-24" />
+              </>
+            ) : (
+              <>
+                {/* Source */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-medium leading-none">Source</span>
+                  <select
+                    value={seedId ?? 'all'}
+                    onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
+                    className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
+                  >
+                    <option value="all">All phrases</option>
+                    {seeds.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.phraseCount})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Order */}
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium leading-none">Order</span>
-              <div className="flex gap-2">
-                <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
-                  In order
-                </Button>
-                <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
-                  Random
-                </Button>
-              </div>
-            </div>
+                {/* Order */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-sm font-medium leading-none">Order</span>
+                  <div className="flex gap-2">
+                    <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
+                      In order
+                    </Button>
+                    <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
+                      Random
+                    </Button>
+                  </div>
+                </div>
 
-            <Button onClick={handleStart} disabled={phrasesLoading} className="self-start">
-              {phrasesLoading ? 'Loading…' : 'Start'}
-            </Button>
+                <Button onClick={handleStart} disabled={phrasesLoading} className="self-start">
+                  {phrasesLoading ? 'Loading…' : 'Start'}
+                </Button>
+              </>
+            )}
           </div>
         )}
 

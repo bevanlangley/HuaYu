@@ -67,6 +67,15 @@ describe('Translate', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
   })
 
+  it('shows a settings-panel skeleton instead of empty controls while seeds are loading', () => {
+    mockHook({ seedsLoading: true })
+    renderPage()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /start/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^random$/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Source')).not.toBeInTheDocument()
+  })
+
   it('calls startSession when Start is clicked', async () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /start/i }))

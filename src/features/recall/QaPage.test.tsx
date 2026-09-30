@@ -114,6 +114,15 @@ describe('QaPage', () => {
     expect(screen.getByRole('combobox')).toHaveValue('all')
   })
 
+  it('shows a settings-panel skeleton instead of empty controls while seeds are loading', () => {
+    mockHook({ seedsLoading: true })
+    renderPage()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^start$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^random$/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Source')).not.toBeInTheDocument()
+  })
+
   it('calls startSession with seedId null and the default Random order when Start is clicked without changing the source', async () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
