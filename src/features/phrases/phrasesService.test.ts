@@ -6,6 +6,7 @@ import {
   attachAnswerToQuestion,
   isPhraseUnpaired,
   countUnpaired,
+  createPhrase,
 } from './phrasesService'
 import type { Phrase } from '@/lib/database.types'
 
@@ -95,6 +96,62 @@ function makePhrase(overrides: Partial<Phrase> = {}): Phrase {
     ...overrides,
   }
 }
+
+describe('createPhrase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('inserts without question_id when none is passed', async () => {
+    const created = makePhrase({ id: 'new' })
+    const mockSingle = vi.fn().mockResolvedValue({ data: created, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+
+    await createPhrase('s1', { mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', phrase_type: 'statement' })
+
+    expect(mockInsert).toHaveBeenCalledWith({
+      seed_id: 's1',
+      mandarin: '你好',
+      pinyin: 'nǐ hǎo',
+      english: 'Hello',
+      phrase_type: 'statement',
+    })
+  })
+
+  it('inserts with question_id when passed, for chained answer authoring', async () => {
+    const created = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1' })
+    const mockSingle = vi.fn().mockResolvedValue({ data: created, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+
+    await createPhrase(
+      's1',
+      { mandarin: '我很好', pinyin: 'wǒ hěn hǎo', english: "I'm well", phrase_type: 'answer' },
+      'q1'
+    )
+
+    expect(mockInsert).toHaveBeenCalledWith({
+      seed_id: 's1',
+      mandarin: '我很好',
+      pinyin: 'wǒ hěn hǎo',
+      english: "I'm well",
+      phrase_type: 'answer',
+      question_id: 'q1',
+    })
+  })
+
+  it('throws when supabase errors', async () => {
+    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const mockSelect = vi.fn().mockReturnValue({ single: mockSingle })
+    const mockInsert = vi.fn().mockReturnValue({ select: mockSelect })
+    vi.mocked(supabase.from).mockReturnValue({ insert: mockInsert } as any)
+
+    await expect(
+      createPhrase('s1', { mandarin: '你好', pinyin: 'nǐ hǎo', english: 'Hello', phrase_type: 'statement' })
+    ).rejects.toMatchObject({ message: 'DB error' })
+  })
+})
 
 describe('fetchQuestionsBySeed', () => {
   beforeEach(() => vi.clearAllMocks())

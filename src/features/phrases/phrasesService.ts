@@ -61,11 +61,15 @@ export async function fetchAllPhrases(opts: {
   return { phrases: (data ?? []) as PhraseWithSeed[], total: count ?? 0 }
 }
 
-export async function createPhrase(seedId: string, values: PhraseFormData): Promise<Phrase> {
+export async function createPhrase(
+  seedId: string,
+  values: PhraseFormData,
+  questionId?: string
+): Promise<Phrase> {
   logger.info('Creating phrase', { seedId })
   const { data, error } = await supabase
     .from('phrases')
-    .insert({ seed_id: seedId, ...values })
+    .insert({ seed_id: seedId, ...values, ...(questionId !== undefined && { question_id: questionId }) })
     .select()
     .single()
 
