@@ -69,7 +69,7 @@ export function QaPage() {
   return (
     <>
       <Header title="Q&A" />
-      <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
+      <div className="max-w-2xl mx-auto w-full px-4 py-8 flex flex-col gap-6">
         <h1 className="hidden md:block text-lg font-medium text-grey-800 dark:text-grey-100">Q&A</h1>
 
         {!sessionActive && (
