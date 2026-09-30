@@ -7,14 +7,19 @@ vi.mock('./qaService', () => ({
 }))
 vi.mock('@/features/phrases/phrasesService', () => ({
   fetchExchangesBySeed: vi.fn(),
+  fetchAllExchanges: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+vi.mock('@/lib/utils', () => ({
+  shuffleArray: vi.fn((arr: unknown[]) => [...arr].reverse()),
+}))
 
 import { fetchSeedsWithExchangeCounts } from './qaService'
-import { fetchExchangesBySeed } from '@/features/phrases/phrasesService'
+import { fetchExchangesBySeed, fetchAllExchanges } from '@/features/phrases/phrasesService'
+import { shuffleArray } from '@/lib/utils'
 
 const mockSeeds = [
   { id: 's1', name: 'Seed 1', tag: null, source_url: null, created_at: '2024-01-01', phraseCount: 3, exchangeCount: 2 },
@@ -50,6 +55,8 @@ describe('useQa', () => {
     vi.clearAllMocks()
     vi.mocked(fetchSeedsWithExchangeCounts).mockResolvedValue(mockSeeds)
     vi.mocked(fetchExchangesBySeed).mockResolvedValue(mockExchanges)
+    vi.mocked(fetchAllExchanges).mockResolvedValue(mockExchanges)
+    vi.mocked(shuffleArray).mockImplementation((arr: unknown[]) => [...arr].reverse())
   })
 
   it('loads seeds on mount', async () => {
@@ -63,7 +70,7 @@ describe('useQa', () => {
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
 
     await act(async () => {
-      await result.current.startSession({ seedId: 's1' })
+      await result.current.startSession({ seedId: 's1', random: false })
     })
 
     expect(fetchExchangesBySeed).toHaveBeenCalledWith('s1')
@@ -77,7 +84,7 @@ describe('useQa', () => {
   it('reveal sets isRevealed and justRevealed', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
 
     act(() => result.current.reveal())
 
@@ -88,7 +95,7 @@ describe('useQa', () => {
   it('next advances index and clears justRevealed', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
     act(() => result.current.reveal())
     act(() => result.current.next())
 
@@ -101,7 +108,7 @@ describe('useQa', () => {
   it('navigating back to a revealed exchange shows it as revealed', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
     act(() => result.current.reveal())   // reveal exchange 0
     act(() => result.current.next())     // go to exchange 1
     act(() => result.current.previous()) // back to exchange 0
@@ -114,7 +121,7 @@ describe('useQa', () => {
   it('previous does not go below 0', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
     act(() => result.current.previous())
 
     expect(result.current.currentIndex).toBe(0)
@@ -123,7 +130,7 @@ describe('useQa', () => {
   it('next does not go past the last exchange', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
     act(() => result.current.next())
     act(() => result.current.next())
 
@@ -133,7 +140,7 @@ describe('useQa', () => {
   it('stopSession resets everything', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
     act(() => result.current.reveal())
     act(() => result.current.stopSession())
 
@@ -146,8 +153,47 @@ describe('useQa', () => {
   it('exposes the linked-answer count on the current exchange for the UI to decide autoplay', async () => {
     const { result } = renderHook(() => useQa())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
-    await act(async () => { await result.current.startSession({ seedId: 's1' }) })
+    await act(async () => { await result.current.startSession({ seedId: 's1', random: false }) })
 
     expect(result.current.currentExchange?.answers).toHaveLength(1)
+  })
+
+  it('startSession with seedId null pools exchanges across all seeds instead of fetching by seed', async () => {
+    const { result } = renderHook(() => useQa())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: null, random: false })
+    })
+
+    expect(fetchAllExchanges).toHaveBeenCalled()
+    expect(fetchExchangesBySeed).not.toHaveBeenCalled()
+    expect(result.current.exchanges).toEqual(mockExchanges)
+  })
+
+  it('startSession with random true shuffles the Exchange order via shuffleArray', async () => {
+    const { result } = renderHook(() => useQa())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', random: true })
+    })
+
+    expect(shuffleArray).toHaveBeenCalledWith(mockExchanges)
+    // the mocked shuffleArray reverses order; answers within each exchange stay untouched
+    expect(result.current.exchanges).toEqual([...mockExchanges].reverse())
+    expect(result.current.exchanges[0].answers).toEqual(mockExchanges[1].answers)
+  })
+
+  it('startSession with random false does not shuffle', async () => {
+    const { result } = renderHook(() => useQa())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', random: false })
+    })
+
+    expect(shuffleArray).not.toHaveBeenCalled()
+    expect(result.current.exchanges).toEqual(mockExchanges)
   })
 })

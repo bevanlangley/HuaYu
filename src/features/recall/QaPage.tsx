@@ -10,6 +10,8 @@ import { useQa } from './useQa'
 
 export function QaPage() {
   const [seedId, setSeedId] = useState<string | null>(null)
+  const [random, setRandom] = useState(true)
+  const [displayText, setDisplayText] = useState(true)
 
   const {
     seeds, seedsLoading,
@@ -61,8 +63,7 @@ export function QaPage() {
   }
 
   function handleStart() {
-    if (!seedId) return
-    startSession({ seedId })
+    startSession({ seedId, random })
   }
 
   return (
@@ -80,11 +81,11 @@ export function QaPage() {
                 <Skeleton className="h-10 w-full" />
               ) : (
                 <select
-                  value={seedId ?? ''}
-                  onChange={(e) => setSeedId(e.target.value || null)}
+                  value={seedId ?? 'all'}
+                  onChange={(e) => setSeedId(e.target.value === 'all' ? null : e.target.value)}
                   className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
                 >
-                  <option value="" disabled>Select a seed</option>
+                  <option value="all">All seeds</option>
                   {seeds.map((s) => (
                     <option key={s.id} value={s.id} disabled={s.exchangeCount === 0}>
                       {s.name} ({s.exchangeCount})
@@ -94,7 +95,33 @@ export function QaPage() {
               )}
             </div>
 
-            <Button onClick={handleStart} disabled={seedsLoading || !seedId || exchangesLoading} className="self-start">
+            {/* Order */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium leading-none">Order</span>
+              <div className="flex gap-2">
+                <Button variant={!random ? 'default' : 'ghost'} onClick={() => setRandom(false)}>
+                  In order
+                </Button>
+                <Button variant={random ? 'default' : 'ghost'} onClick={() => setRandom(true)}>
+                  Random
+                </Button>
+              </div>
+            </div>
+
+            {/* Display text */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium leading-none">Display text</span>
+              <div className="flex gap-2">
+                <Button variant={displayText ? 'default' : 'ghost'} onClick={() => setDisplayText(true)}>
+                  On
+                </Button>
+                <Button variant={!displayText ? 'default' : 'ghost'} onClick={() => setDisplayText(false)}>
+                  Off
+                </Button>
+              </div>
+            </div>
+
+            <Button onClick={handleStart} disabled={seedsLoading || exchangesLoading} className="self-start">
               {exchangesLoading ? 'Loading…' : 'Start'}
             </Button>
           </div>
@@ -110,8 +137,12 @@ export function QaPage() {
               {currentExchange ? (
                 <>
                   <div className="flex flex-col items-center gap-2 text-center">
-                    <p lang="zh-TW" className="text-2xl font-medium">{currentExchange.question.mandarin}</p>
-                    <p className="text-sm text-grey-500 dark:text-grey-400">{currentExchange.question.pinyin}</p>
+                    {(isRevealed || displayText) && (
+                      <>
+                        <p lang="zh-TW" className="text-2xl font-medium">{currentExchange.question.mandarin}</p>
+                        <p className="text-sm text-grey-500 dark:text-grey-400">{currentExchange.question.pinyin}</p>
+                      </>
+                    )}
                     {isRevealed && (
                       <p className="text-sm text-grey-500 dark:text-grey-400">{currentExchange.question.english}</p>
                     )}

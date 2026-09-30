@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { fetchExchangesBySeed } from '@/features/phrases/phrasesService'
+import { fetchExchangesBySeed, fetchAllExchanges } from '@/features/phrases/phrasesService'
 import { fetchSeedsWithExchangeCounts, type SeedWithExchangeCount } from './qaService'
 import { logger } from '@/lib/logger'
+import { shuffleArray } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Exchange } from '@/lib/database.types'
 
 export interface QaConfig {
-  seedId: string
+  seedId: string | null
+  random: boolean
 }
 
 export function useQa() {
@@ -35,7 +37,8 @@ export function useQa() {
   const startSession = useCallback(async (cfg: QaConfig) => {
     setExchangesLoading(true)
     try {
-      const ordered = await fetchExchangesBySeed(cfg.seedId)
+      const raw = cfg.seedId ? await fetchExchangesBySeed(cfg.seedId) : await fetchAllExchanges()
+      const ordered = cfg.random ? shuffleArray(raw) : raw
       exchangesRef.current = ordered
       setExchanges(ordered)
       setCurrentIndex(0)

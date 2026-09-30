@@ -2,21 +2,13 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { fetchSeeds } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { logger } from '@/lib/logger'
+import { shuffleArray } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Phrase, SeedWithCount } from '@/lib/database.types'
 
 export interface RecallConfig {
   seedId: string | null
   random: boolean
-}
-
-function shuffleArray<T>(arr: T[]): T[] {
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
 }
 
 export function useRecall() {

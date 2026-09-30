@@ -120,17 +120,32 @@ export async function fetchQuestionsBySeed(seedId: string): Promise<Phrase[]> {
 // An Exchange is a Question with >=1 linked Answer. Statements and unpaired Questions/Answers
 // never form one — a Question with zero Answers is filtered out, and an Answer's question_id
 // only ever surfaces it as part of its Question's `answers`, never on its own.
-export async function fetchExchangesBySeed(seedId: string): Promise<Exchange[]> {
-  logger.info('Fetching exchanges for seed', { seedId })
-  const phrases = await fetchPhrasesBySeed(seedId)
-  const exchanges = phrases
+function toExchanges(phrases: Phrase[]): Exchange[] {
+  return phrases
     .filter((p) => p.phrase_type === 'question')
     .map((question) => ({
       question,
       answers: phrases.filter((p) => p.question_id === question.id),
     }))
     .filter((exchange) => exchange.answers.length > 0)
+}
+
+export async function fetchExchangesBySeed(seedId: string): Promise<Exchange[]> {
+  logger.info('Fetching exchanges for seed', { seedId })
+  const phrases = await fetchPhrasesBySeed(seedId)
+  const exchanges = toExchanges(phrases)
   logger.info('Exchanges fetched', { seedId, count: exchanges.length })
+  return exchanges
+}
+
+// Pools Exchanges across every Seed. Safe to match question_id by id alone (no seed_id
+// scoping needed) because the composite FK guarantees an Answer's question_id can only ever
+// point at a Question within its own Seed.
+export async function fetchAllExchanges(): Promise<Exchange[]> {
+  logger.info('Fetching exchanges across all seeds')
+  const phrases = await fetchAllPhrasesUnpaginated()
+  const exchanges = toExchanges(phrases)
+  logger.info('Exchanges fetched', { count: exchanges.length })
   return exchanges
 }
 

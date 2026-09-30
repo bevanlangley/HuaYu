@@ -104,16 +104,42 @@ describe('QaPage', () => {
     expect(screen.getByRole('option', { name: 'Taxi Conversations (2)' })).not.toBeDisabled()
   })
 
-  it('disables Start until a seed is selected', () => {
+  it('does not disable Start by default, since "All seeds" is already selected', () => {
     renderPage()
-    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /start/i })).not.toBeDisabled()
+  })
+
+  it('defaults the source selector to "All seeds"', () => {
+    renderPage()
+    expect(screen.getByRole('combobox')).toHaveValue('all')
+  })
+
+  it('calls startSession with seedId null and the default Random order when Start is clicked without changing the source', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: null, random: true }))
   })
 
   it('calls startSession with the selected seedId when Start is clicked', async () => {
     renderPage()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 's1' } })
-    fireEvent.click(screen.getByRole('button', { name: /start/i }))
-    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: 's1' }))
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: 's1', random: true }))
+  })
+
+  it('calls startSession with random false after toggling Order to "In order"', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^in order$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: null, random: false }))
+  })
+
+  it('calls startSession with random true after toggling back to "Random"', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^in order$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^random$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    await waitFor(() => expect(mockStartSession).toHaveBeenCalledWith({ seedId: null, random: true }))
   })
 
   it('shows Question Mandarin and Pinyin but withholds English before reveal', () => {
@@ -130,6 +156,43 @@ describe('QaPage', () => {
     expect(screen.getByText('nǐ jīntiān zěnmeyàng?')).toBeInTheDocument()
     expect(screen.queryByText('How are you today?')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /reveal/i })).toBeInTheDocument()
+  })
+
+  it('hides the Question Mandarin/Pinyin pre-reveal when Display text is toggled off, leaving only Replay and Reveal', () => {
+    const { rerender } = renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^off$/i }))
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+      isRevealed: false,
+      justRevealed: false,
+    })
+    rerender(<MemoryRouter><QaPage /></MemoryRouter>)
+
+    expect(screen.queryByText('你今天怎麼樣？')).not.toBeInTheDocument()
+    expect(screen.queryByText('nǐ jīntiān zěnmeyàng?')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /replay/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reveal/i })).toBeInTheDocument()
+  })
+
+  it('shows the Question Mandarin/Pinyin/English on reveal regardless of the Display text setting', () => {
+    const { rerender } = renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^off$/i }))
+    mockHook({
+      sessionActive: true,
+      exchanges: [singleAnswerExchange],
+      currentExchange: singleAnswerExchange,
+      currentIndex: 0,
+      isRevealed: true,
+      justRevealed: true,
+    })
+    rerender(<MemoryRouter><QaPage /></MemoryRouter>)
+
+    expect(screen.getByText('你今天怎麼樣？')).toBeInTheDocument()
+    expect(screen.getByText('nǐ jīntiān zěnmeyàng?')).toBeInTheDocument()
+    expect(screen.getByText('How are you today?')).toBeInTheDocument()
   })
 
   it('shows the progress indicator', () => {

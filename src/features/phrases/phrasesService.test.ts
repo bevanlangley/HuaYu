@@ -4,6 +4,7 @@ import {
   fetchAllPhrasesUnpaginated,
   fetchQuestionsBySeed,
   fetchExchangesBySeed,
+  fetchAllExchanges,
   attachAnswerToQuestion,
   isPhraseUnpaired,
   countUnpaired,
@@ -233,6 +234,54 @@ describe('fetchExchangesBySeed', () => {
     vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
 
     await expect(fetchExchangesBySeed('s1')).rejects.toMatchObject({ message: 'DB error' })
+  })
+})
+
+describe('fetchAllExchanges', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('pools exchanges across every seed, answers ordered created_at asc', async () => {
+    const q1 = makePhrase({ id: 'q1', seed_id: 's1', phrase_type: 'question', created_at: '2024-01-01' }) // unpaired, excluded
+    const q2 = makePhrase({ id: 'q2', seed_id: 's1', phrase_type: 'question', created_at: '2024-01-02' })
+    const a1 = makePhrase({ id: 'a1', seed_id: 's1', phrase_type: 'answer', question_id: 'q2', created_at: '2024-01-03' })
+    const q3 = makePhrase({ id: 'q3', seed_id: 's2', phrase_type: 'question', created_at: '2024-01-04' })
+    const a2 = makePhrase({ id: 'a2', seed_id: 's2', phrase_type: 'answer', question_id: 'q3', created_at: '2024-01-05' })
+    const a3 = makePhrase({ id: 'a3', seed_id: 's2', phrase_type: 'answer', question_id: 'q3', created_at: '2024-01-06' })
+    const s1statement = makePhrase({ id: 's1p', seed_id: 's2', phrase_type: 'statement', created_at: '2024-01-07' })
+    const phrases = [q1, q2, a1, q3, a2, a3, s1statement]
+
+    const mockOrder = vi.fn().mockResolvedValue({ data: phrases, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    const result = await fetchAllExchanges()
+
+    expect(supabase.from).toHaveBeenCalledWith('phrases')
+    expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: true })
+    expect(result).toEqual([
+      { question: q2, answers: [a1] },
+      { question: q3, answers: [a2, a3] },
+    ])
+  })
+
+  it('returns an empty array when there are no complete exchanges anywhere', async () => {
+    const phrases = [
+      makePhrase({ id: 'q1', phrase_type: 'question' }),
+      makePhrase({ id: 's1', phrase_type: 'statement' }),
+    ]
+    const mockOrder = vi.fn().mockResolvedValue({ data: phrases, error: null })
+    const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    expect(await fetchAllExchanges()).toEqual([])
+  })
+
+  it('throws when supabase errors', async () => {
+    const mockOrder = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } })
+    const mockSelect = vi.fn().mockReturnValue({ order: mockOrder })
+    vi.mocked(supabase.from).mockReturnValue({ select: mockSelect } as any)
+
+    await expect(fetchAllExchanges()).rejects.toMatchObject({ message: 'DB error' })
   })
 })
 
