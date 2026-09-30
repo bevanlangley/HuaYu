@@ -44,6 +44,7 @@ export type Database = {
           mandarin: string
           english: string
           pinyin: string
+          phrase_type: Database['public']['Enums']['phrase_type']
           created_at: string
         }
         Insert: {
@@ -52,6 +53,7 @@ export type Database = {
           mandarin: string
           english: string
           pinyin: string
+          phrase_type?: Database['public']['Enums']['phrase_type']
           created_at?: string
         }
         Update: {
@@ -60,6 +62,7 @@ export type Database = {
           mandarin?: string
           english?: string
           pinyin?: string
+          phrase_type?: Database['public']['Enums']['phrase_type']
           created_at?: string
         }
         Relationships: [
@@ -80,7 +83,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      phrase_type: 'question' | 'answer' | 'statement'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -96,6 +99,7 @@ export type SeedUpdate = Database['public']['Tables']['seeds']['Update']
 export type Phrase = Database['public']['Tables']['phrases']['Row']
 export type PhraseInsert = Database['public']['Tables']['phrases']['Insert']
 export type PhraseUpdate = Database['public']['Tables']['phrases']['Update']
+export type PhraseType = Database['public']['Enums']['phrase_type']
 
 export type SeedWithPhrases = Seed & { phrases: Phrase[] }
 export type SeedWithCount = Seed & { phraseCount: number }

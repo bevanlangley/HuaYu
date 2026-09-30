@@ -43,6 +43,7 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
         mandarin: phrase?.mandarin ?? '',
         pinyin: phrase?.pinyin ?? '',
         english: phrase?.english ?? '',
+        phrase_type: phrase?.phrase_type ?? 'statement',
       })
     }
   }, [open, phrase, reset])
@@ -115,6 +116,26 @@ export function PhraseForm({ open, onClose, seedId, phrase, onSaved }: PhraseFor
             {errors.english && (
               <p id="phrase-english-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
                 {errors.english.message}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="phrase-type">Phrase Type *</Label>
+            <select
+              id="phrase-type"
+              aria-describedby={errors.phrase_type ? 'phrase-type-error' : undefined}
+              aria-invalid={Boolean(errors.phrase_type)}
+              className="rounded-md border border-grey-300 dark:border-grey-600 bg-white dark:bg-grey-900 px-3 py-2 text-sm w-full"
+              {...register('phrase_type')}
+            >
+              <option value="question">Question</option>
+              <option value="answer">Answer</option>
+              <option value="statement">Statement</option>
+            </select>
+            {errors.phrase_type && (
+              <p id="phrase-type-error" className="text-xs text-error-text dark:text-error-text-dark-alt">
+                {errors.phrase_type.message}
               </p>
             )}
           </div>

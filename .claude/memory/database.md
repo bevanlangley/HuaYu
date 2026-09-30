@@ -27,6 +27,7 @@ No additional indexes needed for Phase 1 scale.
 | `mandarin` | text | NOT NULL | Traditional Chinese characters |
 | `english` | text | NOT NULL | |
 | `pinyin` | text | NOT NULL | With tone marks |
+| `phrase_type` | `phrase_type` enum | NOT NULL, default `'statement'` | Values: `question`/`answer`/`statement`. Native Postgres enum (not `text` + `CHECK`) so `supabase gen types` emits a real TS union |
 | `created_at` | timestamptz | default `now()` | |
 
 Index on `seed_id` for performant phrase lookups by seed.

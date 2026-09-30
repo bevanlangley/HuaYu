@@ -7,22 +7,38 @@ describe('phraseSchema', () => {
       mandarin: '你好',
       pinyin: 'nǐ hǎo',
       english: 'Hello',
+      phrase_type: 'statement',
     })
     expect(result.success).toBe(true)
   })
 
   it('rejects missing mandarin', () => {
-    const result = phraseSchema.safeParse({ mandarin: '', pinyin: 'nǐ hǎo', english: 'Hello' })
+    const result = phraseSchema.safeParse({
+      mandarin: '',
+      pinyin: 'nǐ hǎo',
+      english: 'Hello',
+      phrase_type: 'statement',
+    })
     expect(result.success).toBe(false)
   })
 
   it('rejects missing pinyin', () => {
-    const result = phraseSchema.safeParse({ mandarin: '你好', pinyin: '', english: 'Hello' })
+    const result = phraseSchema.safeParse({
+      mandarin: '你好',
+      pinyin: '',
+      english: 'Hello',
+      phrase_type: 'statement',
+    })
     expect(result.success).toBe(false)
   })
 
   it('rejects missing english', () => {
-    const result = phraseSchema.safeParse({ mandarin: '你好', pinyin: 'nǐ hǎo', english: '' })
+    const result = phraseSchema.safeParse({
+      mandarin: '你好',
+      pinyin: 'nǐ hǎo',
+      english: '',
+      phrase_type: 'statement',
+    })
     expect(result.success).toBe(false)
   })
 
@@ -31,6 +47,7 @@ describe('phraseSchema', () => {
       mandarin: '  你好  ',
       pinyin: '  nǐ hǎo  ',
       english: '  Hello  ',
+      phrase_type: 'statement',
     })
     expect(result.success).toBe(true)
     if (result.success) {
@@ -38,5 +55,36 @@ describe('phraseSchema', () => {
       expect(result.data.pinyin).toBe('nǐ hǎo')
       expect(result.data.english).toBe('Hello')
     }
+  })
+
+  it('accepts each phrase type value', () => {
+    for (const phrase_type of ['question', 'answer', 'statement'] as const) {
+      const result = phraseSchema.safeParse({
+        mandarin: '你好',
+        pinyin: 'nǐ hǎo',
+        english: 'Hello',
+        phrase_type,
+      })
+      expect(result.success).toBe(true)
+    }
+  })
+
+  it('rejects a missing phrase_type', () => {
+    const result = phraseSchema.safeParse({
+      mandarin: '你好',
+      pinyin: 'nǐ hǎo',
+      english: 'Hello',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects an invalid phrase_type', () => {
+    const result = phraseSchema.safeParse({
+      mandarin: '你好',
+      pinyin: 'nǐ hǎo',
+      english: 'Hello',
+      phrase_type: 'greeting',
+    })
+    expect(result.success).toBe(false)
   })
 })

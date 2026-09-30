@@ -2,6 +2,7 @@ import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { deletePhrase } from '@/features/phrases/phrasesService'
 import { AudioPlayButton } from '@/components/ui/AudioPlayButton'
+import { Badge, type BadgeProps } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useConfirmDialog } from '@/context/ConfirmDialogContext'
-import type { Phrase } from '@/lib/database.types'
+import type { Phrase, PhraseType } from '@/lib/database.types'
 
 interface PhraseCardProps {
   phrase: Phrase
@@ -17,8 +18,15 @@ interface PhraseCardProps {
   onDeleted: (id: string) => void
 }
 
+const PHRASE_TYPE_BADGE: Record<PhraseType, { label: string; variant: BadgeProps['variant'] }> = {
+  question: { label: 'Question', variant: 'info' },
+  answer: { label: 'Answer', variant: 'qa-answer' },
+  statement: { label: 'Statement', variant: 'count' },
+}
+
 export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
   const { openConfirmDialog } = useConfirmDialog()
+  const typeBadge = PHRASE_TYPE_BADGE[phrase.phrase_type]
 
   async function handleDelete() {
     const confirmed = await openConfirmDialog({
@@ -43,6 +51,9 @@ export function PhraseCard({ phrase, onEdit, onDeleted }: PhraseCardProps) {
     <div className="group rounded-lg border border-grey-200 bg-white p-4 dark:border-grey-700 dark:bg-grey-800">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
+          <Badge variant={typeBadge.variant} className="mb-1">
+            {typeBadge.label}
+          </Badge>
           <p lang="zh-TW" className="text-base font-medium text-grey-800 dark:text-grey-100">
             {phrase.mandarin}
           </p>

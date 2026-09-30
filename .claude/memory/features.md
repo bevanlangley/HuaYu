@@ -59,7 +59,11 @@ Active: `primary-500` underline/indicator.
 
 ### Phrases Within Seed (`features/phrases/`)
 - Scoped to a single Seed (Seed detail view). Ordered `created_at ASC`.
-- Add/Edit: modal dialog with PhraseForm (Mandarin, Pinyin, English — all required).
+- Add/Edit: modal dialog with PhraseForm (Mandarin, Pinyin, English, Phrase Type — all required).
+- Phrase Type (`phrase_type` enum: `question`/`answer`/`statement`, DB default `statement`):
+  selector sits after English in the form; defaults to Statement on create, current type on edit.
+  Card shows a type badge — Question = `info` variant, Answer = `qa-answer` variant, Statement =
+  `count` variant. Linking a Question to its Answers is a separate feature (not yet built).
 - Pagination: show when `totalItems > 50`, page size 25. Page 1 = items 1–25 once >50 total.
 - Audio play button on each Phrase card.
 
