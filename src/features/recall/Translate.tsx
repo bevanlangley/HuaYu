@@ -69,11 +69,11 @@ export function Translate() {
                 <div className="flex flex-col gap-2">
                   <Skeleton className="h-3 w-14" />
                   <div className="flex gap-2">
-                    <Skeleton className="h-9 w-24" />
-                    <Skeleton className="h-9 w-24" />
+                    <Skeleton className="h-9 flex-1" />
+                    <Skeleton className="h-9 flex-1" />
                   </div>
                 </div>
-                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-32" />
               </>
             ) : (
               <>
