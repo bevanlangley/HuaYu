@@ -282,3 +282,21 @@ dialogue_phrases/     # junction: dialogue_id (cascade), phrase_id (no action)
 | Cross-cutting patterns (logging, errors, forms, pagination) | `.claude/memory/patterns.md` |
 | Feature status & routing | `.claude/memory/features.md` |
 | PRD source of truth | `PRD/` directory |
+| Domain glossary (canonical terms) | `CONTEXT.md` |
+| Architectural decision records | `docs/adr/` |
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (bevanlangley/HuaYu), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
