@@ -136,3 +136,66 @@ describe('SeedDetail — delete/retype guardrails for linked phrases', () => {
     })
   })
 })
+
+function makeStatement(i: number) {
+  return {
+    id: `s${i}`,
+    seed_id: 's1',
+    mandarin: `statement-${i}`,
+    pinyin: `pinyin-${i}`,
+    english: `Statement ${i}`,
+    phrase_type: 'statement' as const,
+    question_id: null,
+    created_at: `2024-01-${String(i + 1).padStart(2, '0')}`,
+  }
+}
+
+describe('SeedDetail — Exchange grouping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(fetchSeedById).mockResolvedValue(mockSeed)
+  })
+
+  it('renders a Question directly above its linked Answer inside one shared group', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockAnswer])
+    renderPage()
+
+    await screen.findByText(mockQuestion.mandarin)
+    const groups = screen.getAllByTestId('exchange-group')
+    expect(groups).toHaveLength(1)
+
+    const questionText = within(groups[0]).getByText(mockQuestion.mandarin)
+    const answerText = within(groups[0]).getByText(mockAnswer.mandarin)
+    expect(
+      questionText.compareDocumentPosition(answerText) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('renders a Statement outside any exchange group, unaffected by grouping', async () => {
+    const statement = makeStatement(0)
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([statement])
+    renderPage()
+
+    await screen.findByText(statement.mandarin)
+    expect(screen.queryByTestId('exchange-group')).not.toBeInTheDocument()
+  })
+
+  it('never splits an Exchange across a pagination boundary', async () => {
+    const statements = Array.from({ length: 24 }, (_, i) => makeStatement(i))
+    const question = { ...mockQuestion, created_at: '2024-02-01' }
+    const answer = { ...mockAnswer, created_at: '2024-02-02' }
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([...statements, question, answer])
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText(statements[0].mandarin)
+    expect(screen.queryByText(question.mandarin)).not.toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Next page'))
+
+    await screen.findByText(question.mandarin)
+    const groups = screen.getAllByTestId('exchange-group')
+    expect(groups).toHaveLength(1)
+    expect(within(groups[0]).getByText(answer.mandarin)).toBeInTheDocument()
+  })
+})

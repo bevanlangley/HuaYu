@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
-import type { Phrase, Exchange } from '@/lib/database.types'
+import type { Phrase, Exchange, PhraseGroup } from '@/lib/database.types'
 import type { z } from 'zod'
 import type { phraseSchema } from '@/lib/schemas/phrases'
 
@@ -183,6 +183,67 @@ export function isPhraseUnpaired(phrase: Phrase, allPhrases: Phrase[]): boolean 
 
 export function countUnpaired(phrases: Phrase[]): number {
   return phrases.filter(p => isPhraseUnpaired(p, phrases)).length
+}
+
+// Walks phrases in their existing order and groups each Question together with its linked
+// Answers (Question first, Answers in their own relative order); an Answer already claimed by a
+// Question is skipped at its own position since it's emitted as part of that Question's group.
+// Everything else (Statements, unpaired Questions, unpaired Answers) stays a standalone group in
+// its existing position — including an Answer created before its Question: it moves to sit after
+// the Question once linked, rather than staying at its own earlier position.
+export function groupPhrasesByExchange(phrases: Phrase[]): PhraseGroup[] {
+  const claimedAnswerIds = new Set(
+    phrases.filter((p) => p.phrase_type === 'answer' && p.question_id !== null).map((p) => p.id)
+  )
+
+  const groups: PhraseGroup[] = []
+  for (const phrase of phrases) {
+    if (claimedAnswerIds.has(phrase.id)) continue
+    const answers =
+      phrase.phrase_type === 'question' ? phrases.filter((p) => p.question_id === phrase.id) : []
+    groups.push(
+      answers.length > 0
+        ? { kind: 'exchange', question: phrase, answers }
+        : { kind: 'single', phrase }
+    )
+  }
+  return groups
+}
+
+function groupRowCount(group: PhraseGroup): number {
+  return group.kind === 'exchange' ? 1 + group.answers.length : 1
+}
+
+// Walks groups accumulating toward `pageSize` rows, closing the current page once the next group
+// would push it over — unless the current page is still empty, in which case that group (however
+// large) takes the page alone rather than splitting it. A page's row count can therefore land
+// slightly above or below `pageSize`, but a group is never split across two pages.
+function splitIntoPages(groups: PhraseGroup[], pageSize: number): PhraseGroup[][] {
+  const pages: PhraseGroup[][] = []
+  let currentPage: PhraseGroup[] = []
+  let currentRowCount = 0
+
+  for (const group of groups) {
+    const rows = groupRowCount(group)
+    if (currentPage.length > 0 && currentRowCount + rows > pageSize) {
+      pages.push(currentPage)
+      currentPage = []
+      currentRowCount = 0
+    }
+    currentPage.push(group)
+    currentRowCount += rows
+  }
+  if (currentPage.length > 0) pages.push(currentPage)
+  return pages
+}
+
+export function paginateGroups(
+  groups: PhraseGroup[],
+  page: number,
+  pageSize: number
+): { pageGroups: PhraseGroup[]; totalPages: number } {
+  const pages = splitIntoPages(groups, pageSize)
+  return { pageGroups: pages[page - 1] ?? [], totalPages: Math.max(1, pages.length) }
 }
 
 export function countLinkedAnswers(questionId: string, allPhrases: Phrase[]): number {

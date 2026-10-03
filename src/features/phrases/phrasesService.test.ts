@@ -12,8 +12,10 @@ import {
   createPhrase,
   updatePhrase,
   unlinkAnswersFromQuestion,
+  groupPhrasesByExchange,
+  paginateGroups,
 } from './phrasesService'
-import type { Phrase } from '@/lib/database.types'
+import type { Phrase, PhraseGroup } from '@/lib/database.types'
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -464,5 +466,125 @@ describe('countUnpaired', () => {
 
   it('returns 0 for an empty list', () => {
     expect(countUnpaired([])).toBe(0)
+  })
+})
+
+describe('groupPhrasesByExchange', () => {
+  it('emits every phrase as a single group when none are linked', () => {
+    const s1 = makePhrase({ id: 's1', phrase_type: 'statement', created_at: '2024-01-01' })
+    const s2 = makePhrase({ id: 's2', phrase_type: 'statement', created_at: '2024-01-02' })
+
+    expect(groupPhrasesByExchange([s1, s2])).toEqual([
+      { kind: 'single', phrase: s1 },
+      { kind: 'single', phrase: s2 },
+    ])
+  })
+
+  it('groups a Question with its one linked Answer', () => {
+    const q1 = makePhrase({ id: 'q1', phrase_type: 'question', created_at: '2024-01-01' })
+    const a1 = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-02' })
+
+    expect(groupPhrasesByExchange([q1, a1])).toEqual([
+      { kind: 'exchange', question: q1, answers: [a1] },
+    ])
+  })
+
+  it('groups a Question with all three of its linked Answers, in their own created_at order', () => {
+    const q1 = makePhrase({ id: 'q1', phrase_type: 'question', created_at: '2024-01-01' })
+    const a1 = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-02' })
+    const a2 = makePhrase({ id: 'a2', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-03' })
+    const a3 = makePhrase({ id: 'a3', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-04' })
+
+    expect(groupPhrasesByExchange([q1, a1, a2, a3])).toEqual([
+      { kind: 'exchange', question: q1, answers: [a1, a2, a3] },
+    ])
+  })
+
+  it('moves an Answer created before its Question to sit after it once linked', () => {
+    const a1 = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-01' })
+    const q1 = makePhrase({ id: 'q1', phrase_type: 'question', created_at: '2024-01-02' })
+
+    expect(groupPhrasesByExchange([a1, q1])).toEqual([
+      { kind: 'exchange', question: q1, answers: [a1] },
+    ])
+  })
+
+  it('emits an unpaired Question (zero Answers) as a single, not an empty exchange', () => {
+    const q1 = makePhrase({ id: 'q1', phrase_type: 'question', created_at: '2024-01-01' })
+
+    expect(groupPhrasesByExchange([q1])).toEqual([{ kind: 'single', phrase: q1 }])
+  })
+
+  it('emits an unpaired Answer (no question_id) as a single', () => {
+    const a1 = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: null, created_at: '2024-01-01' })
+
+    expect(groupPhrasesByExchange([a1])).toEqual([{ kind: 'single', phrase: a1 }])
+  })
+
+  it('interleaves Exchanges and standalone phrases in their original order', () => {
+    const s1 = makePhrase({ id: 's1', phrase_type: 'statement', created_at: '2024-01-01' })
+    const q1 = makePhrase({ id: 'q1', phrase_type: 'question', created_at: '2024-01-02' })
+    const qUnpaired = makePhrase({ id: 'q2', phrase_type: 'question', created_at: '2024-01-03' })
+    const a1 = makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1', created_at: '2024-01-04' })
+    const aUnpaired = makePhrase({ id: 'a2', phrase_type: 'answer', question_id: null, created_at: '2024-01-05' })
+    const s2 = makePhrase({ id: 's2', phrase_type: 'statement', created_at: '2024-01-06' })
+    const phrases = [s1, q1, qUnpaired, a1, aUnpaired, s2]
+
+    expect(groupPhrasesByExchange(phrases)).toEqual([
+      { kind: 'single', phrase: s1 },
+      { kind: 'exchange', question: q1, answers: [a1] },
+      { kind: 'single', phrase: qUnpaired },
+      { kind: 'single', phrase: aUnpaired },
+      { kind: 'single', phrase: s2 },
+    ])
+  })
+})
+
+describe('paginateGroups', () => {
+  it('returns one page when the total row count is under the page size', () => {
+    const groups: PhraseGroup[] = [
+      makePhrase({ id: 'p1' }),
+      makePhrase({ id: 'p2' }),
+      makePhrase({ id: 'p3' }),
+    ].map((phrase) => ({ kind: 'single' as const, phrase }))
+
+    const result = paginateGroups(groups, 1, 10)
+
+    expect(result).toEqual({ pageGroups: groups, totalPages: 1 })
+  })
+
+  it('moves an Exchange whole to the next page rather than splitting it at the boundary', () => {
+    const singles = [
+      makePhrase({ id: 'p1' }),
+      makePhrase({ id: 'p2' }),
+      makePhrase({ id: 'p3' }),
+      makePhrase({ id: 'p4' }),
+    ].map((phrase) => ({ kind: 'single' as const, phrase }))
+    const question = makePhrase({ id: 'q1', phrase_type: 'question' })
+    const exchange = {
+      kind: 'exchange' as const,
+      question,
+      answers: [makePhrase({ id: 'a1', phrase_type: 'answer', question_id: 'q1' }), makePhrase({ id: 'a2', phrase_type: 'answer', question_id: 'q1' })],
+    }
+    const groups = [...singles, exchange] // 4 single rows + 1 exchange (1 + 2 answers = 3 rows) = 7 rows total
+
+    expect(paginateGroups(groups, 1, 5)).toEqual({ pageGroups: singles, totalPages: 2 })
+    expect(paginateGroups(groups, 2, 5)).toEqual({ pageGroups: [exchange], totalPages: 2 })
+  })
+
+  it('keeps an Exchange larger than a full page alone on its own page', () => {
+    const question = makePhrase({ id: 'q1', phrase_type: 'question' })
+    const bigExchange = {
+      kind: 'exchange' as const,
+      question,
+      answers: Array.from({ length: 6 }, (_, i) =>
+        makePhrase({ id: `a${i}`, phrase_type: 'answer', question_id: 'q1' })
+      ),
+    } // 1 + 6 answers = 7 rows, bigger than the page size of 5
+    const trailingSingle = { kind: 'single' as const, phrase: makePhrase({ id: 'p1' }) }
+    const groups = [bigExchange, trailingSingle]
+
+    expect(paginateGroups(groups, 1, 5)).toEqual({ pageGroups: [bigExchange], totalPages: 2 })
+    expect(paginateGroups(groups, 2, 5)).toEqual({ pageGroups: [trailingSingle], totalPages: 2 })
   })
 })

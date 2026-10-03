@@ -3,7 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
-import { fetchPhrasesBySeed, isPhraseUnpaired, countUnpaired, countLinkedAnswers } from '@/features/phrases/phrasesService'
+import {
+  fetchPhrasesBySeed,
+  isPhraseUnpaired,
+  countUnpaired,
+  countLinkedAnswers,
+  groupPhrasesByExchange,
+  paginateGroups,
+} from '@/features/phrases/phrasesService'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -84,9 +91,22 @@ export function SeedDetail() {
     )
   }
 
-  const totalPages = Math.max(1, Math.ceil(phrases.length / PAGE_SIZE))
-  const paginated = phrases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const { pageGroups, totalPages } = paginateGroups(groupPhrasesByExchange(phrases), page, PAGE_SIZE)
   const unpairedCount = countUnpaired(phrases)
+
+  function renderPhraseCard(phrase: Phrase, linkedAnswerCount: number) {
+    return (
+      <PhraseCard
+        key={phrase.id}
+        phrase={phrase}
+        isUnpaired={isPhraseUnpaired(phrase, phrases)}
+        linkedAnswerCount={linkedAnswerCount}
+        onEdit={handlePhraseEdit}
+        onDeleted={handlePhraseDeleted}
+        onUpdated={handlePhraseSaved}
+      />
+    )
+  }
   const unpairedBadge = unpairedCount > 0 && <Badge variant="warning">{unpairedCount} unpaired</Badge>
 
   const addButton = (
@@ -181,19 +201,24 @@ export function SeedDetail() {
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
-              {paginated.map(phrase => (
-                <PhraseCard
-                  key={phrase.id}
-                  phrase={phrase}
-                  isUnpaired={isPhraseUnpaired(phrase, phrases)}
-                  linkedAnswerCount={phrase.phrase_type === 'question' ? countLinkedAnswers(phrase.id, phrases) : 0}
-                  onEdit={handlePhraseEdit}
-                  onDeleted={handlePhraseDeleted}
-                  onUpdated={handlePhraseSaved}
-                />
-              ))}
+              {pageGroups.map(group =>
+                // A `single` question-typed phrase always has zero linked answers — otherwise
+                // groupPhrasesByExchange would have produced an `exchange` group instead.
+                group.kind === 'single' ? (
+                  renderPhraseCard(group.phrase, 0)
+                ) : (
+                  <div
+                    key={group.question.id}
+                    data-testid="exchange-group"
+                    className="flex flex-col gap-2 rounded-lg border border-grey-200 bg-grey-100 p-2 dark:border-grey-700 dark:bg-grey-800 sm:col-span-2"
+                  >
+                    {renderPhraseCard(group.question, group.answers.length)}
+                    {group.answers.map(answer => renderPhraseCard(answer, 0))}
+                  </div>
+                )
+              )}
             </div>
-            {phrases.length > PAGE_SIZE && (
+            {totalPages > 1 && (
               <div className="mt-6">
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
               </div>
