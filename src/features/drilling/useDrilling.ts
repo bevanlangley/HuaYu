@@ -125,11 +125,11 @@ export function useDrilling() {
       const raw = cfg.seedId
         ? await fetchPhrasesBySeed(cfg.seedId)
         : await fetchAllPhrasesUnpaginated()
-      const ordered = cfg.random
-        ? shuffleArray(raw)
-        : groupPhrasesByExchange(raw).flatMap((group) =>
-            group.kind === 'exchange' ? [group.question, ...group.answers] : [group.phrase]
-          )
+      const groups = groupPhrasesByExchange(raw)
+      const orderedGroups = cfg.random ? shuffleArray(groups) : groups
+      const ordered = orderedGroups.flatMap((group) =>
+        group.kind === 'exchange' ? [group.question, ...group.answers] : [group.phrase]
+      )
       phrasesRef.current = ordered
       configRef.current = cfg
       indexRef.current = 0

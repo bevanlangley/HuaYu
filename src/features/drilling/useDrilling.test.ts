@@ -51,6 +51,14 @@ const mockAnswer2 = {
   id: 'a2', seed_id: 's1', mandarin: '還不錯', pinyin: 'hái búcuò', english: 'Not bad',
   phrase_type: 'answer' as const, question_id: 'q1', created_at: '2024-01-04',
 }
+const mockQuestion2 = {
+  id: 'q2', seed_id: 's1', mandarin: '你叫什麼名字？', pinyin: 'nǐ jiào shénme míngzì?', english: "What's your name?",
+  phrase_type: 'question' as const, question_id: null, created_at: '2024-01-05',
+}
+const mockAnswer3 = {
+  id: 'a3', seed_id: 's1', mandarin: '我叫小明', pinyin: 'wǒ jiào xiǎomíng', english: 'My name is Xiaoming',
+  phrase_type: 'answer' as const, question_id: 'q2', created_at: '2024-01-06',
+}
 
 describe('useDrilling', () => {
   beforeEach(() => {
@@ -357,6 +365,34 @@ describe('useDrilling', () => {
     expect(result.current.phrases.map((p) => p.id)).toEqual(groupedOrder)
     expect(result.current.currentPhrase?.id).toBe('q1')
   })
+
+  // Two Exchanges (q1->[a1,a2], q2->[a3]) plus a standalone filler — three groups give shuffle
+  // something real to reorder, so adjacency holding across iterations isn't trivial by
+  // construction the way it would be with only one movable group.
+  const multiExchangePhrases = [mockQuestion, mockFiller, mockAnswer1, mockQuestion2, mockAnswer2, mockAnswer3]
+
+  it.each([
+    ['single-Seed', 's1', () => vi.mocked(fetchPhrasesBySeed).mockResolvedValue(multiExchangePhrases)],
+    ['all seeds', null, () => vi.mocked(fetchAllPhrasesUnpaginated).mockResolvedValue(multiExchangePhrases)],
+  ] as const)(
+    'never separates a Question from its Answers under shuffle, across many randomized iterations (%s)',
+    async (_label, seedId, setUpFetch) => {
+      setUpFetch()
+      const { result } = renderHook(() => useDrilling())
+      await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+      for (let i = 0; i < 30; i++) {
+        await act(async () => {
+          await result.current.startSession({ seedId, drillType: 'shadow', random: true, gapSeconds: 3, loop: false })
+        })
+        const ids = result.current.phrases.map((p) => p.id)
+        const q1Index = ids.indexOf('q1')
+        expect(ids.slice(q1Index, q1Index + 3)).toEqual(['q1', 'a1', 'a2'])
+        const q2Index = ids.indexOf('q2')
+        expect(ids.slice(q2Index, q2Index + 2)).toEqual(['q2', 'a3'])
+      }
+    }
+  )
 
   it('startSession logs error when fetch fails', async () => {
     vi.mocked(fetchPhrasesBySeed).mockRejectedValueOnce(new Error('network error'))
