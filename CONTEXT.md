@@ -80,5 +80,8 @@ subsections:
 
 ## Drilling
 
-Sequential, timed playback of a Seed's Phrases (listen or shadow mode), unaffected by Phrase Type.
-Distinct from Recall: Drilling has no "guess before reveal" mechanic.
+Timed playback of a Seed's Phrases, or every Seed's Phrases merged together (listen or shadow
+mode), sequential by default or shuffled. Exchange-aware: a Question always plays immediately
+followed by all of its linked Answers, whether the session is sequential or shuffled — shuffle
+randomizes Exchanges and standalone Phrases relative to each other, but never separates a Question
+from its own Answers. Distinct from Recall: Drilling has no "guess before reveal" mechanic.

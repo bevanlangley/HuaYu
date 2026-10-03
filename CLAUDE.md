@@ -141,7 +141,11 @@ Stored in `localStorage` by the user at runtime. Never in env vars or committed 
   SQL migrations live in `supabase/migrations/`. Per-user policies (`user_id`) are Phase 2.
 - **Generated types**: Use `Database['public']['Tables']['seeds']['Row']` — never write manual
   interface definitions for table rows.
-- **Ordering**: Phrases always ordered by `created_at ASC`. No reordering feature in any phase.
+- **Ordering**: Phrases are grouped by Exchange wherever displayed (Seed Detail) or drilled
+  (sequential or shuffled): a Question is followed immediately by its linked Answers, in their own
+  `created_at ASC` order. Every other Phrase (Statement, unpaired Question, unpaired Answer) stays
+  in plain `created_at ASC` order. Computed on read from `question_id`/`phrase_type` — no stored
+  order column, no user-driven manual reordering in any phase.
 - **Deletion**: Hard deletes only. Deleting a Seed cascades to delete all its Phrases (FK).
 - **Search**: `ilike` across `mandarin`, `english`, `pinyin` columns — no FTS index needed.
 - **Pagination**: Show pagination when `totalItems > 50`. Page size: 25.

@@ -81,6 +81,9 @@ Active: `primary-500` underline/indicator.
 - Auto-play mode: cycles through Seed's phrases with configurable interval.
 - Step-through mode: keyboard shortcuts (`keydown` on document, cleaned up on unmount).
 - Loop option. Drill prompt display.
+- Random/shuffle option. Exchange-grouped: a Question always plays immediately followed by all
+  its linked Answers, sequential or shuffled — shuffle randomizes Exchange/standalone units
+  relative to each other, never a Question apart from its own Answers.
 
 ## Key Decisions (Recorded Gaps)
 - **Tag filter UI**: pill/toggle selector (applied from PRD gap default)

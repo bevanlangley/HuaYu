@@ -32,7 +32,9 @@ No additional indexes needed for Phase 1 scale.
 
 Index on `seed_id` for performant phrase lookups by seed.
 **Search:** `ilike` across `mandarin`, `english`, `pinyin` — no FTS index needed at Phase 1 scale.
-**Ordering:** always `created_at ASC`. No reordering in any phase.
+**Ordering:** Exchange-grouped — a Question is followed immediately by its linked Answers;
+everything else stays `created_at ASC`. Computed on read, no stored order column. See
+`docs/adr/0002-exchange-grouped-ordering.md`.
 
 ## Deletion Behaviour
 - All deletes are **hard deletes** — no `deleted_at` soft delete in any phase.
