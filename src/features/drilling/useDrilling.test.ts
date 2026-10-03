@@ -5,10 +5,14 @@ import { useDrilling } from './useDrilling'
 vi.mock('@/features/seeds/seedsService', () => ({
   fetchSeeds: vi.fn(),
 }))
-vi.mock('@/features/phrases/phrasesService', () => ({
-  fetchPhrasesBySeed: vi.fn(),
-  fetchAllPhrasesUnpaginated: vi.fn(),
-}))
+vi.mock('@/features/phrases/phrasesService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/phrases/phrasesService')>()
+  return {
+    ...actual,
+    fetchPhrasesBySeed: vi.fn(),
+    fetchAllPhrasesUnpaginated: vi.fn(),
+  }
+})
 vi.mock('@/lib/tts', () => ({
   speakMandarin: vi.fn(),
 }))
@@ -30,6 +34,23 @@ const mockPhrases = [
   { id: 'p2', seed_id: 's1', mandarin: '謝謝', pinyin: 'xiè xiè', english: 'Thank you', phrase_type: 'statement' as const, question_id: null, created_at: '2024-01-02' },
 ]
 const mockCancel = vi.fn()
+
+const mockQuestion = {
+  id: 'q1', seed_id: 's1', mandarin: '你好嗎？', pinyin: 'nǐ hǎo ma?', english: 'How are you?',
+  phrase_type: 'question' as const, question_id: null, created_at: '2024-01-01',
+}
+const mockFiller = {
+  id: 'f1', seed_id: 's1', mandarin: '再見', pinyin: 'zài jiàn', english: 'Goodbye',
+  phrase_type: 'statement' as const, question_id: null, created_at: '2024-01-02',
+}
+const mockAnswer1 = {
+  id: 'a1', seed_id: 's1', mandarin: '我很好', pinyin: 'wǒ hěn hǎo', english: "I'm well",
+  phrase_type: 'answer' as const, question_id: 'q1', created_at: '2024-01-03',
+}
+const mockAnswer2 = {
+  id: 'a2', seed_id: 's1', mandarin: '還不錯', pinyin: 'hái búcuò', english: 'Not bad',
+  phrase_type: 'answer' as const, question_id: 'q1', created_at: '2024-01-04',
+}
 
 describe('useDrilling', () => {
   beforeEach(() => {
@@ -248,6 +269,93 @@ describe('useDrilling', () => {
     // Loop: should be back at index 0 and speaking again
     await waitFor(() => expect(result.current.currentIndex).toBe(0))
     expect(vi.mocked(speakMandarin).mock.calls.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('plays a Question immediately followed by all its linked Answers, ahead of a phrase that fell between them', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockFiller, mockAnswer1, mockAnswer2])
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+
+    expect(result.current.phrases.map((p) => p.id)).toEqual(['q1', 'a1', 'a2', 'f1'])
+  })
+
+  it('preserves Question-then-Answers pairing in "all seeds" sequential Drilling', async () => {
+    vi.mocked(fetchAllPhrasesUnpaginated).mockResolvedValue([mockQuestion, mockFiller, mockAnswer1, mockAnswer2])
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: null, drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+
+    expect(fetchAllPhrasesUnpaginated).toHaveBeenCalled()
+    expect(result.current.phrases.map((p) => p.id)).toEqual(['q1', 'a1', 'a2', 'f1'])
+  })
+
+  it('steps Next one phrase at a time through a grouped Exchange', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockFiller, mockAnswer1, mockAnswer2])
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+
+    expect(result.current.currentPhrase?.id).toBe('q1')
+    act(() => result.current.next())
+    expect(result.current.currentPhrase?.id).toBe('a1')
+    act(() => result.current.next())
+    expect(result.current.currentPhrase?.id).toBe('a2')
+    act(() => result.current.next())
+    expect(result.current.currentPhrase?.id).toBe('f1')
+  })
+
+  it('steps Previous one phrase at a time back through a grouped Exchange', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockFiller, mockAnswer1, mockAnswer2])
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'shadow', random: false, gapSeconds: 3, loop: false })
+    })
+    act(() => result.current.next())
+    act(() => result.current.next())
+    act(() => result.current.next())
+    expect(result.current.currentPhrase?.id).toBe('f1')
+
+    act(() => result.current.previous())
+    expect(result.current.currentPhrase?.id).toBe('a2')
+    act(() => result.current.previous())
+    expect(result.current.currentPhrase?.id).toBe('a1')
+    act(() => result.current.previous())
+    expect(result.current.currentPhrase?.id).toBe('q1')
+  })
+
+  it('replays the same grouped order (Question, then Answers, then the filler) after looping back to the start', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockFiller, mockAnswer1, mockAnswer2])
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', drillType: 'listen', random: false, gapSeconds: 1, loop: true })
+    })
+    const groupedOrder = result.current.phrases.map((p) => p.id)
+
+    // Walk through all four phrases via their onEnd callback, to trigger the loop restart.
+    for (let i = 0; i < groupedOrder.length; i++) {
+      const onEnd = vi.mocked(speakMandarin).mock.lastCall![1] as () => void
+      act(() => onEnd())
+      act(() => vi.advanceTimersByTime(1000))
+    }
+
+    await waitFor(() => expect(result.current.currentIndex).toBe(0))
+    // The looped pass reuses the same grouped array rather than re-deriving or re-scattering it.
+    expect(result.current.phrases.map((p) => p.id)).toEqual(groupedOrder)
+    expect(result.current.currentPhrase?.id).toBe('q1')
   })
 
   it('startSession logs error when fetch fails', async () => {
