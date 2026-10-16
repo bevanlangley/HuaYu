@@ -29,8 +29,8 @@ describe('buildExchangeIndex — groups', () => {
     const s2 = statement('s2')
 
     expect(buildExchangeIndex([s1, s2]).groups).toEqual([
-      { kind: 'single', phrase: s1 },
-      { kind: 'single', phrase: s2 },
+      { kind: 'standalone', phrase: s1 },
+      { kind: 'standalone', phrase: s2 },
     ])
   })
 
@@ -57,13 +57,13 @@ describe('buildExchangeIndex — groups', () => {
   it('emits an unpaired Question (zero Answers) as standalone, not an empty exchange', () => {
     const q1 = question('q1')
 
-    expect(buildExchangeIndex([q1]).groups).toEqual([{ kind: 'single', phrase: q1 }])
+    expect(buildExchangeIndex([q1]).groups).toEqual([{ kind: 'standalone', phrase: q1 }])
   })
 
   it('emits an unpaired Answer (no question_id) as standalone', () => {
     const a1 = answer('a1', null)
 
-    expect(buildExchangeIndex([a1]).groups).toEqual([{ kind: 'single', phrase: a1 }])
+    expect(buildExchangeIndex([a1]).groups).toEqual([{ kind: 'standalone', phrase: a1 }])
   })
 
   it('interleaves Exchanges and standalone phrases in their original order', () => {
@@ -75,11 +75,11 @@ describe('buildExchangeIndex — groups', () => {
     const s2 = statement('s2')
 
     expect(buildExchangeIndex([s1, q1, qUnpaired, a1, aUnpaired, s2]).groups).toEqual([
-      { kind: 'single', phrase: s1 },
+      { kind: 'standalone', phrase: s1 },
       { kind: 'exchange', question: q1, answers: [a1] },
-      { kind: 'single', phrase: qUnpaired },
-      { kind: 'single', phrase: aUnpaired },
-      { kind: 'single', phrase: s2 },
+      { kind: 'standalone', phrase: qUnpaired },
+      { kind: 'standalone', phrase: aUnpaired },
+      { kind: 'standalone', phrase: s2 },
     ])
   })
 
@@ -90,7 +90,7 @@ describe('buildExchangeIndex — groups', () => {
 
     expect(buildExchangeIndex([q1, a1, stale]).groups).toEqual([
       { kind: 'exchange', question: q1, answers: [a1] },
-      { kind: 'single', phrase: stale },
+      { kind: 'standalone', phrase: stale },
     ])
   })
 
@@ -102,7 +102,7 @@ describe('buildExchangeIndex — groups', () => {
     const dangling = answer('a1', 'target')
 
     expect(buildExchangeIndex([...others, dangling]).groups).toContainEqual({
-      kind: 'single',
+      kind: 'standalone',
       phrase: dangling,
     })
   })
@@ -210,8 +210,8 @@ describe('buildExchangeIndex — exchangeCountBySeed', () => {
 })
 
 describe('paginateGroups', () => {
-  const singles = (...ids: string[]): PhraseGroup[] =>
-    ids.map((id) => ({ kind: 'single' as const, phrase: statement(id) }))
+  const standalones = (...ids: string[]): PhraseGroup[] =>
+    ids.map((id) => ({ kind: 'standalone' as const, phrase: statement(id) }))
   const exchangeWith = (answerCount: number): PhraseGroup => ({
     kind: 'exchange',
     question: question('q1'),
@@ -219,14 +219,14 @@ describe('paginateGroups', () => {
   })
 
   it('returns one page when the total row count is under the page size', () => {
-    const groups = singles('p1', 'p2', 'p3')
+    const groups = standalones('p1', 'p2', 'p3')
 
     expect(paginateGroups(groups, 1, 10)).toEqual({ pageGroups: groups, totalPages: 1 })
   })
 
   it('moves an Exchange whole to the next page rather than splitting it at the boundary', () => {
-    const leading = singles('p1', 'p2', 'p3', 'p4')
-    const exchange = exchangeWith(2) // 4 single rows + 3 exchange rows = 7 rows
+    const leading = standalones('p1', 'p2', 'p3', 'p4')
+    const exchange = exchangeWith(2) // 4 standalone rows + 3 exchange rows = 7 rows
     const groups = [...leading, exchange]
 
     expect(paginateGroups(groups, 1, 5)).toEqual({ pageGroups: leading, totalPages: 2 })
@@ -235,7 +235,7 @@ describe('paginateGroups', () => {
 
   it('keeps an Exchange larger than a full page alone on its own page', () => {
     const bigExchange = exchangeWith(6) // 7 rows, bigger than the page size of 5
-    const trailing = singles('p1')
+    const trailing = standalones('p1')
     const groups = [bigExchange, ...trailing]
 
     expect(paginateGroups(groups, 1, 5)).toEqual({ pageGroups: [bigExchange], totalPages: 2 })

@@ -51,7 +51,7 @@ function buildGroups(phrases: Phrase[], answersByQuestionId: Map<string, Phrase[
     groups.push(
       answers.length > 0
         ? { kind: 'exchange', question: phrase, answers }
-        : { kind: 'single', phrase }
+        : { kind: 'standalone', phrase }
     )
   }
   return groups

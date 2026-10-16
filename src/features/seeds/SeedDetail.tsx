@@ -197,9 +197,9 @@ export function SeedDetail() {
           <>
             <div className="grid gap-3 sm:grid-cols-2">
               {pageGroups.map(group =>
-                // A `single` question-typed phrase always has zero linked answers — otherwise
+                // A `standalone` question-typed phrase always has zero linked answers — otherwise
                 // buildExchangeIndex would have produced an `exchange` group instead.
-                group.kind === 'single' ? (
+                group.kind === 'standalone' ? (
                   renderPhraseCard(group.phrase, 0)
                 ) : (
                   <div

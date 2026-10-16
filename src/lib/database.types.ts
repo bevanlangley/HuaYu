@@ -248,4 +248,4 @@ export type Exchange = { question: Phrase; answers: Phrase[] }
 // Answers, or any other phrase (Statement, unpaired Question, unpaired Answer) standing alone.
 export type PhraseGroup =
   | ({ kind: 'exchange' } & Exchange)
-  | { kind: 'single'; phrase: Phrase }
+  | { kind: 'standalone'; phrase: Phrase }
