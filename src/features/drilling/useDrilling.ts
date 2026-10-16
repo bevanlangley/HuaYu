@@ -6,6 +6,7 @@ import { buildExchangeIndex } from '@/features/phrases/exchanges'
 import { speakMandarin } from '@/lib/tts'
 import { useTts } from '@/context/TtsContext'
 import { logger } from '@/lib/logger'
+import { shuffleArray } from '@/lib/utils'
 import type { Phrase, SeedWithCount } from '@/lib/database.types'
 
 export type DrillType = 'listen' | 'shadow'
@@ -17,15 +18,6 @@ export interface DrillConfig {
   random: boolean
   gapSeconds: number
   loop: boolean
-}
-
-function shuffleArray<T>(arr: T[]): T[] {
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
 }
 
 export function useDrilling() {
