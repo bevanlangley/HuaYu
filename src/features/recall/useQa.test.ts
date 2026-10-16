@@ -6,8 +6,8 @@ vi.mock('./qaService', () => ({
   fetchSeedsWithExchangeCounts: vi.fn(),
 }))
 vi.mock('@/features/phrases/phrasesService', () => ({
-  fetchExchangesBySeed: vi.fn(),
-  fetchAllExchanges: vi.fn(),
+  fetchPhrasesBySeed: vi.fn(),
+  fetchAllPhrasesUnpaginated: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -18,7 +18,7 @@ vi.mock('@/lib/utils', () => ({
 }))
 
 import { fetchSeedsWithExchangeCounts } from './qaService'
-import { fetchExchangesBySeed, fetchAllExchanges } from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { shuffleArray } from '@/lib/utils'
 
 const mockSeeds = [
@@ -49,13 +49,14 @@ const mockExchanges = [
     answers: [makePhrase({ id: 'a2', phrase_type: 'answer', question_id: 'q2' })],
   },
 ]
+const mockPhrases = mockExchanges.flatMap((e) => [e.question, ...e.answers])
 
 describe('useQa', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(fetchSeedsWithExchangeCounts).mockResolvedValue(mockSeeds)
-    vi.mocked(fetchExchangesBySeed).mockResolvedValue(mockExchanges)
-    vi.mocked(fetchAllExchanges).mockResolvedValue(mockExchanges)
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue(mockPhrases)
+    vi.mocked(fetchAllPhrasesUnpaginated).mockResolvedValue(mockPhrases)
     vi.mocked(shuffleArray).mockImplementation((arr: unknown[]) => [...arr].reverse())
   })
 
@@ -73,7 +74,7 @@ describe('useQa', () => {
       await result.current.startSession({ seedId: 's1', random: false })
     })
 
-    expect(fetchExchangesBySeed).toHaveBeenCalledWith('s1')
+    expect(fetchPhrasesBySeed).toHaveBeenCalledWith('s1')
     expect(result.current.sessionActive).toBe(true)
     expect(result.current.exchanges).toEqual(mockExchanges)
     expect(result.current.currentIndex).toBe(0)
@@ -166,8 +167,24 @@ describe('useQa', () => {
       await result.current.startSession({ seedId: null, random: false })
     })
 
-    expect(fetchAllExchanges).toHaveBeenCalled()
-    expect(fetchExchangesBySeed).not.toHaveBeenCalled()
+    expect(fetchAllPhrasesUnpaginated).toHaveBeenCalled()
+    expect(fetchPhrasesBySeed).not.toHaveBeenCalled()
+    expect(result.current.exchanges).toEqual(mockExchanges)
+  })
+
+  it('startSession drills only complete Exchanges, skipping unpaired Questions and Statements', async () => {
+    vi.mocked(fetchPhrasesBySeed).mockResolvedValue([
+      makePhrase({ id: 'q-unpaired' }),
+      ...mockPhrases,
+      makePhrase({ id: 'st', phrase_type: 'statement' }),
+    ])
+    const { result } = renderHook(() => useQa())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.startSession({ seedId: 's1', random: false })
+    })
+
     expect(result.current.exchanges).toEqual(mockExchanges)
   })
 

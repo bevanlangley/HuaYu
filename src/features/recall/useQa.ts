@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { fetchExchangesBySeed, fetchAllExchanges } from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
+import { buildExchangeIndex } from '@/features/phrases/exchanges'
 import { fetchSeedsWithExchangeCounts, type SeedWithExchangeCount } from './qaService'
 import { logger } from '@/lib/logger'
 import { shuffleArray } from '@/lib/utils'
@@ -37,7 +38,10 @@ export function useQa() {
   const startSession = useCallback(async (cfg: QaConfig) => {
     setExchangesLoading(true)
     try {
-      const raw = cfg.seedId ? await fetchExchangesBySeed(cfg.seedId) : await fetchAllExchanges()
+      const phrases = cfg.seedId
+        ? await fetchPhrasesBySeed(cfg.seedId)
+        : await fetchAllPhrasesUnpaginated()
+      const { exchanges: raw } = buildExchangeIndex(phrases)
       const ordered = cfg.random ? shuffleArray(raw) : raw
       exchangesRef.current = ordered
       setExchanges(ordered)

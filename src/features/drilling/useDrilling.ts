@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { fetchSeeds } from '@/features/seeds/seedsService'
-import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated, groupPhrasesByExchange } from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
+import { buildExchangeIndex } from '@/features/phrases/exchanges'
 import { speakMandarin } from '@/lib/tts'
 import { useTts } from '@/context/TtsContext'
 import { logger } from '@/lib/logger'
@@ -125,7 +126,7 @@ export function useDrilling() {
       const raw = cfg.seedId
         ? await fetchPhrasesBySeed(cfg.seedId)
         : await fetchAllPhrasesUnpaginated()
-      const groups = groupPhrasesByExchange(raw)
+      const { groups } = buildExchangeIndex(raw)
       const orderedGroups = cfg.random ? shuffleArray(groups) : groups
       const ordered = orderedGroups.flatMap((group) =>
         group.kind === 'exchange' ? [group.question, ...group.answers] : [group.phrase]

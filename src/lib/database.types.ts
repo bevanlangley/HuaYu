@@ -247,5 +247,5 @@ export type Exchange = { question: Phrase; answers: Phrase[] }
 // One display/playback unit in Exchange-aware order: either a Question grouped with its linked
 // Answers, or any other phrase (Statement, unpaired Question, unpaired Answer) standing alone.
 export type PhraseGroup =
-  | { kind: 'exchange'; question: Phrase; answers: Phrase[] }
+  | ({ kind: 'exchange' } & Exchange)
   | { kind: 'single'; phrase: Phrase }

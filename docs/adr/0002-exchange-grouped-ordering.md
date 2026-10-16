@@ -35,8 +35,8 @@ Compute Exchange-grouped order on read, from the existing `phrase_type`/`questio
 no schema change, no stored order column, no user-driven manual reordering. A Question with ≥1
 linked Answer is grouped with those Answers (Question first, Answers in their own `created_at ASC`
 order); every other Phrase (Statement, unpaired Question, unpaired Answer) stays in plain
-`created_at ASC` order. One function (`groupPhrasesByExchange`, `phrasesService.ts`) is the single
-source of this grouping, consumed by both the Seed Detail list and Drilling.
+`created_at ASC` order. One pure module (`buildExchangeIndex`, `features/phrases/exchanges.ts`) is the
+single source of this grouping, consumed by the Seed Detail list, Drilling, and Q&A.
 
 Both edge cases were resolved in favor of **atomic**, not split:
 - Pagination walks groups rather than individual rows, and a page boundary never falls inside an
@@ -62,5 +62,5 @@ instead of never.
   units. A future feature that wants true per-Phrase shuffle (ignoring Exchange grouping) would
   need an explicit opt-out, not a flag flip, since atomicity is now the expected default.
 - If Answer reuse across Questions is ever introduced (see ADR 1's consequences), grouping still
-  holds: `groupPhrasesByExchange` only needs each Answer to resolve to exactly one Question at
+  holds: `buildExchangeIndex` only needs each Answer to resolve to exactly one Question at
   read time, regardless of how that resolution is stored.

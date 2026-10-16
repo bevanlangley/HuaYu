@@ -1,16 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
-import {
-  fetchPhrasesBySeed,
-  isPhraseUnpaired,
-  countUnpaired,
-  countLinkedAnswers,
-  groupPhrasesByExchange,
-  paginateGroups,
-} from '@/features/phrases/phrasesService'
+import { fetchPhrasesBySeed } from '@/features/phrases/phrasesService'
+import { buildExchangeIndex, paginateGroups } from '@/features/phrases/exchanges'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -91,15 +85,16 @@ export function SeedDetail() {
     )
   }
 
-  const { pageGroups, totalPages } = paginateGroups(groupPhrasesByExchange(phrases), page, PAGE_SIZE)
-  const unpairedCount = countUnpaired(phrases)
+  const exchangeIndex = useMemo(() => buildExchangeIndex(phrases), [phrases])
+  const { pageGroups, totalPages } = paginateGroups(exchangeIndex.groups, page, PAGE_SIZE)
+  const unpairedCount = exchangeIndex.unpairedCount
 
   function renderPhraseCard(phrase: Phrase, linkedAnswerCount: number) {
     return (
       <PhraseCard
         key={phrase.id}
         phrase={phrase}
-        isUnpaired={isPhraseUnpaired(phrase, phrases)}
+        isUnpaired={exchangeIndex.isUnpaired(phrase.id)}
         linkedAnswerCount={linkedAnswerCount}
         onEdit={handlePhraseEdit}
         onDeleted={handlePhraseDeleted}
@@ -203,7 +198,7 @@ export function SeedDetail() {
             <div className="grid gap-3 sm:grid-cols-2">
               {pageGroups.map(group =>
                 // A `single` question-typed phrase always has zero linked answers — otherwise
-                // groupPhrasesByExchange would have produced an `exchange` group instead.
+                // buildExchangeIndex would have produced an `exchange` group instead.
                 group.kind === 'single' ? (
                   renderPhraseCard(group.phrase, 0)
                 ) : (
@@ -234,7 +229,7 @@ export function SeedDetail() {
           seedId={seed.id}
           phrase={editingPhrase}
           linkedAnswerCount={
-            editingPhrase?.phrase_type === 'question' ? countLinkedAnswers(editingPhrase.id, phrases) : 0
+            editingPhrase ? exchangeIndex.answerCount(editingPhrase.id) : 0
           }
           onSaved={handlePhraseSaved}
         />

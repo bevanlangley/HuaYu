@@ -58,11 +58,21 @@ Deliberately not called a "pair," since a Question may carry more than two Phras
 Question, several Answers). An Exchange exists only when a Question has at least one linked
 Answer — a Question with zero Answers is not an Exchange, it's an **unpaired** Question.
 
+Only an Answer can be part of an Exchange. A Statement or Question that somehow references a
+Question is not linked to it and never joins its Exchange.
+
+## Standalone Phrase
+
+Any Phrase that is not part of an Exchange: a Statement, an unpaired Question, or an unpaired
+Answer. Wherever Phrases are shown or drilled in Exchange-aware order, the units are Exchanges
+and Standalone Phrases.
+
 ## Unpaired
 
 The state of a Question with no linked Answers, or an Answer with no linked Question. Unpaired
 Phrases are flagged with a warning icon on their card and are excluded from Q&A — only complete
-Exchanges (a Question with ≥1 Answer) are drillable. Unpaired is not an error state the user must
+Exchanges (a Question with ≥1 Answer) are drillable. An Answer whose reference points at something
+that is not a Question is unpaired too, and is shown like any other unpaired Phrase, never hidden. Unpaired is not an error state the user must
 resolve; it's a normal transient state while building out a Seed (e.g., you've written the
 Question but haven't added an Answer yet).
 
@@ -83,5 +93,5 @@ subsections:
 Timed playback of a Seed's Phrases, or every Seed's Phrases merged together (listen or shadow
 mode), sequential by default or shuffled. Exchange-aware: a Question always plays immediately
 followed by all of its linked Answers, whether the session is sequential or shuffled — shuffle
-randomizes Exchanges and standalone Phrases relative to each other, but never separates a Question
+randomizes Exchanges and Standalone Phrases relative to each other, but never separates a Question
 from its own Answers. Distinct from Recall: Drilling has no "guess before reveal" mechanic.
