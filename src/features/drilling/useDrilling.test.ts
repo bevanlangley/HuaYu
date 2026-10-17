@@ -24,6 +24,7 @@ vi.mock('@/context/TtsContext', () => ({
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
+import { toast } from 'sonner'
 import { fetchSeeds } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { speakMandarin } from '@/lib/tts'
@@ -76,6 +77,13 @@ describe('useDrilling', () => {
     const { result } = renderHook(() => useDrilling())
     await waitFor(() => expect(result.current.seedsLoading).toBe(false))
     expect(result.current.seeds).toEqual(mockSeeds)
+  })
+
+  it('toasts when seeds fail to load', async () => {
+    vi.mocked(fetchSeeds).mockRejectedValue(new Error('boom'))
+    const { result } = renderHook(() => useDrilling())
+    await waitFor(() => expect(result.current.seedsLoading).toBe(false))
+    expect(toast.error).toHaveBeenCalledWith('Could not load seeds. Try again.')
   })
 
   it('startSession fetches phrases from the given seed', async () => {

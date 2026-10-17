@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchSeeds } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { logger } from '@/lib/logger'
+import { toast } from 'sonner'
 import { shuffleArray } from '@/lib/utils'
 import { useRevealSession } from './useRevealSession'
 import type { Phrase, SeedWithCount } from '@/lib/database.types'
@@ -31,7 +32,10 @@ export function useRecall() {
   useEffect(() => {
     fetchSeeds()
       .then(setSeeds)
-      .catch((err) => logger.error('Failed to load seeds for recall', err))
+      .catch((err) => {
+        logger.error('Failed to load seeds for recall', err)
+        toast.error('Could not load seeds. Try again.')
+      })
       .finally(() => setSeedsLoading(false))
   }, [])
 

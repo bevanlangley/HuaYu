@@ -43,7 +43,10 @@ export function useDrilling() {
   useEffect(() => {
     fetchSeeds()
       .then(setSeeds)
-      .catch((err) => logger.error('Failed to load seeds for drill', err))
+      .catch((err) => {
+        logger.error('Failed to load seeds for drill', err)
+        toast.error('Could not load seeds. Try again.')
+      })
       .finally(() => setSeedsLoading(false))
   }, [])
 
