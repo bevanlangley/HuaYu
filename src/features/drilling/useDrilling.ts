@@ -47,20 +47,22 @@ export function useDrilling() {
       .finally(() => setSeedsLoading(false))
   }, [])
 
-  useEffect(() => {
-    return () => {
-      cancelAudioRef.current?.()
-      cancelAudioRef.current = null
-      if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-      gapTimerRef.current = null
-    }
-  }, [])
-
-  const stopSession = useCallback(() => {
+  // Cancels in-flight audio and the pending gap timer. Callers clear currentlyPlaying themselves.
+  const halt = useCallback(() => {
     cancelAudioRef.current?.()
     cancelAudioRef.current = null
     if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
     gapTimerRef.current = null
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      halt()
+    }
+  }, [halt])
+
+  const stopSession = useCallback(() => {
+    halt()
     setCurrentlyPlaying(null)
     setSessionActive(false)
     setConfig(null)
@@ -71,15 +73,12 @@ export function useDrilling() {
     indexRef.current = 0
     setPlaybackState('playing')
     playbackStateRef.current = 'playing'
-  }, [setCurrentlyPlaying])
+  }, [halt, setCurrentlyPlaying])
 
   const speakAtIndex = useCallback((idx: number) => {
     const phrase = phrasesRef.current[idx]
     if (!phrase) return
-    cancelAudioRef.current?.()
-    cancelAudioRef.current = null
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-    gapTimerRef.current = null
+    halt()
 
     setCurrentlyPlaying(phrase.id)
     const cancel = speakMandarin(phrase.mandarin, () => {
@@ -105,13 +104,10 @@ export function useDrilling() {
       }, gap)
     })
     cancelAudioRef.current = cancel
-  }, [setCurrentlyPlaying, stopSession])
+  }, [halt, setCurrentlyPlaying, stopSession])
 
   const startSession = useCallback(async (cfg: DrillConfig) => {
-    cancelAudioRef.current?.()
-    cancelAudioRef.current = null
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-    gapTimerRef.current = null
+    halt()
     setCurrentlyPlaying(null)
     setPhrasesLoading(true)
     try {
@@ -141,17 +137,14 @@ export function useDrilling() {
     } finally {
       setPhrasesLoading(false)
     }
-  }, [speakAtIndex, setCurrentlyPlaying])
+  }, [halt, speakAtIndex, setCurrentlyPlaying])
 
   const pause = useCallback(() => {
-    cancelAudioRef.current?.()
-    cancelAudioRef.current = null
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-    gapTimerRef.current = null
+    halt()
     setCurrentlyPlaying(null)
     playbackStateRef.current = 'paused'
     setPlaybackState('paused')
-  }, [setCurrentlyPlaying])
+  }, [halt, setCurrentlyPlaying])
 
   const resume = useCallback(() => {
     playbackStateRef.current = 'playing'
@@ -163,10 +156,7 @@ export function useDrilling() {
 
   const next = useCallback(() => {
     if (indexRef.current >= phrasesRef.current.length - 1) return
-    cancelAudioRef.current?.()
-    cancelAudioRef.current = null
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-    gapTimerRef.current = null
+    halt()
     setCurrentlyPlaying(null)
     const nextIdx = Math.min(indexRef.current + 1, phrasesRef.current.length - 1)
     indexRef.current = nextIdx
@@ -174,13 +164,10 @@ export function useDrilling() {
     if (configRef.current?.drillType === 'listen' && playbackStateRef.current === 'playing') {
       speakAtIndex(nextIdx)
     }
-  }, [setCurrentlyPlaying, speakAtIndex])
+  }, [halt, setCurrentlyPlaying, speakAtIndex])
 
   const previous = useCallback(() => {
-    cancelAudioRef.current?.()
-    cancelAudioRef.current = null
-    if (gapTimerRef.current) clearTimeout(gapTimerRef.current)
-    gapTimerRef.current = null
+    halt()
     setCurrentlyPlaying(null)
     const prevIdx = Math.max(indexRef.current - 1, 0)
     indexRef.current = prevIdx
@@ -188,7 +175,7 @@ export function useDrilling() {
     if (configRef.current?.drillType === 'listen' && playbackStateRef.current === 'playing') {
       speakAtIndex(prevIdx)
     }
-  }, [setCurrentlyPlaying, speakAtIndex])
+  }, [halt, setCurrentlyPlaying, speakAtIndex])
 
   const speakCurrent = useCallback(() => {
     const phrase = phrasesRef.current[indexRef.current]
