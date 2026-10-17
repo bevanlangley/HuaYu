@@ -34,9 +34,11 @@ No additional indexes needed for Phase 1 scale.
 **Link rules (trigger `phrases_enforce_link_rules`, ADR 0003):** the database owns Link validity.
 A row that stops being a Question unlinks all its Answers; a row that stops being an Answer has
 its own `question_id` cleared; setting `question_id` on a non-Answer or at a non-Question raises
-`check_violation`. The client never unlinks — a retype is one plain `update`; after a delete or
+`check_violation` (so does retyping an Answer away while writing a new `question_id` in the same
+update). The client never unlinks — a retype is one plain `update`; after a delete or
 retype that unlinks others, SeedDetail refetches (`linkConsequence` decides when).
-`supabase/verify_link_rules.sql` checks the trigger (always rolls back; run it via the Management API).
+`supabase/verify_link_rules.sql` checks the cleanup and the trigger inside `begin … rollback`; send
+the whole file as one Management API query (success = one `all checks passed` row).
 
 Index on `seed_id` for performant phrase lookups by seed.
 **Search:** `ilike` across `mandarin`, `english`, `pinyin` — no FTS index needed at Phase 1 scale.

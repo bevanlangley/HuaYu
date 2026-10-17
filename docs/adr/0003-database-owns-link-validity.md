@@ -19,6 +19,10 @@ A Postgres trigger on `phrases` owns every Link rule:
 - Any write that sets `question_id` is rejected unless the row is an Answer and the referenced
   Phrase is a Question.
 
+A single update that retypes an Answer away *and* writes a new `question_id` is contradictory, so
+the third rule wins and it is rejected; only a retype that leaves `question_id` untouched has its
+Link cleared.
+
 A one-time cleanup in the same migration nulls every existing Link that breaks these rules. After a
 mutation that unlinks other Phrases, the client refetches the Seed's Phrases instead of predicting
 the result locally.
