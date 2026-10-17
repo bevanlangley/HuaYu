@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Zap } from 'lucide-react'
 import { toast } from 'sonner'
+import { logger } from '@/lib/logger'
 import { fetchSeedById } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed } from '@/features/phrases/phrasesService'
 import { buildExchangeIndex, paginateGroups } from '@/features/phrases/exchanges'
@@ -75,7 +76,8 @@ export function SeedDetail() {
   async function refreshAfterUnlink() {
     try {
       setPhrases(await fetchPhrasesBySeed(seedId!))
-    } catch {
+    } catch (err) {
+      logger.error('Failed to refresh phrases after unlink', err)
       toast.error("Phrase saved, but the list couldn't refresh. Reload to see linked answers.")
     }
   }
