@@ -94,8 +94,9 @@ export function buildExchangeIndex(phrases: Phrase[]): ExchangeIndex {
   }
 }
 
-function groupRowCount(group: PhraseGroup): number {
-  return group.kind === 'exchange' ? 1 + group.answers.length : 1
+// A group's Phrases in display/playback order: a Question then its Answers, or the lone Phrase.
+export function groupPhrases(group: PhraseGroup): Phrase[] {
+  return group.kind === 'exchange' ? [group.question, ...group.answers] : [group.phrase]
 }
 
 // Walks groups accumulating toward `pageSize` rows, closing the current page once the next group
@@ -108,7 +109,7 @@ function splitIntoPages(groups: PhraseGroup[], pageSize: number): PhraseGroup[][
   let currentRowCount = 0
 
   for (const group of groups) {
-    const rows = groupRowCount(group)
+    const rows = groupPhrases(group).length
     if (currentPage.length > 0 && currentRowCount + rows > pageSize) {
       pages.push(currentPage)
       currentPage = []

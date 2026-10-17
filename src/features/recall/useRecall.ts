@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react'
 import { fetchSeeds } from '@/features/seeds/seedsService'
+import { useSeedList } from '@/features/seeds/useSeedList'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
-import { logger } from '@/lib/logger'
-import { toast } from 'sonner'
 import { shuffleArray } from '@/lib/utils'
 import { useRevealSession } from './useRevealSession'
-import type { Phrase, SeedWithCount } from '@/lib/database.types'
+import type { Phrase } from '@/lib/database.types'
 
 export interface RecallConfig {
   seedId: string | null
@@ -20,24 +18,13 @@ async function loadPhrases(cfg: RecallConfig): Promise<Phrase[]> {
 }
 
 export function useRecall() {
-  const [seeds, setSeeds] = useState<SeedWithCount[]>([])
-  const [seedsLoading, setSeedsLoading] = useState(true)
+  const { seeds, seedsLoading } = useSeedList(fetchSeeds)
 
   const session = useRevealSession<Phrase, RecallConfig>({
     loadItems: loadPhrases,
-    failureLabel: 'start recall session',
+    failureLog: 'Failed to start recall session',
     failureToast: 'Could not load phrases. Try again.',
   })
-
-  useEffect(() => {
-    fetchSeeds()
-      .then(setSeeds)
-      .catch((err) => {
-        logger.error('Failed to load seeds for recall', err)
-        toast.error('Could not load seeds. Try again.')
-      })
-      .finally(() => setSeedsLoading(false))
-  }, [])
 
   return {
     seeds,

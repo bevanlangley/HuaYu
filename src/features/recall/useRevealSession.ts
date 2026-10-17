@@ -4,12 +4,12 @@ import { toast } from 'sonner'
 
 interface RevealSessionOptions<T, C> {
   loadItems: (cfg: C) => Promise<T[]>
-  failureLabel: string
+  failureLog: string
   failureToast: string
 }
 
 // Step-through-and-reveal session shared by Recall (Phrases) and Q&A (Exchanges).
-export function useRevealSession<T, C>({ loadItems, failureLabel, failureToast }: RevealSessionOptions<T, C>) {
+export function useRevealSession<T, C>({ loadItems, failureLog, failureToast }: RevealSessionOptions<T, C>) {
   const [sessionActive, setSessionActive] = useState(false)
   const [items, setItems] = useState<T[]>([])
   const [loading, setLoading] = useState(false)
@@ -34,12 +34,12 @@ export function useRevealSession<T, C>({ loadItems, failureLabel, failureToast }
       resetProgress()
       setSessionActive(true)
     } catch (err) {
-      logger.error(`Failed to ${failureLabel}`, err)
+      logger.error(failureLog, err)
       toast.error(failureToast)
     } finally {
       setLoading(false)
     }
-  }, [loadItems, failureLabel, failureToast, resetProgress])
+  }, [loadItems, failureLog, failureToast, resetProgress])
 
   const stopSession = useCallback(() => {
     setSessionActive(false)

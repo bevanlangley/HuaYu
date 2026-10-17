@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildExchangeIndex, paginateGroups } from './exchanges'
+import { buildExchangeIndex, groupPhrases, paginateGroups } from './exchanges'
 import type { Phrase, PhraseGroup } from '@/lib/database.types'
 
 function makePhrase(overrides: Partial<Phrase> = {}): Phrase {
@@ -206,6 +206,21 @@ describe('buildExchangeIndex — exchangeCountBySeed', () => {
     expect(exchangeCountBySeed.get('s1')).toBe(2)
     expect(exchangeCountBySeed.get('s2')).toBeUndefined()
     expect(exchangeCountBySeed.get('s3')).toBe(1)
+  })
+})
+
+describe('groupPhrases', () => {
+  it('returns the Question followed by its Answers for an Exchange', () => {
+    const q = question('q1')
+    const answers = [answer('a1', 'q1'), answer('a2', 'q1')]
+
+    expect(groupPhrases({ kind: 'exchange', question: q, answers })).toEqual([q, ...answers])
+  })
+
+  it('returns the lone Phrase for a standalone group', () => {
+    const st = statement('p1')
+
+    expect(groupPhrases({ kind: 'standalone', phrase: st })).toEqual([st])
   })
 })
 

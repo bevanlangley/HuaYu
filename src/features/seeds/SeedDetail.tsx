@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger'
 import { fetchSeedById } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed } from '@/features/phrases/phrasesService'
 import { buildExchangeIndex, paginateGroups } from '@/features/phrases/exchanges'
-import { linkConsequence } from '@/features/phrases/linkConsequence'
+import { linkConsequence, type LinkChange } from '@/features/phrases/linkConsequence'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -82,26 +82,25 @@ export function SeedDetail() {
     }
   }
 
-  function handlePhraseSaved(saved: Phrase) {
-    const previous = phrases.find(p => p.id === saved.id)
-    setPhrases(prev =>
-      prev.some(p => p.id === saved.id) ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
-    )
+  // Reads this render's `phrases` and `exchangeIndex` on purpose: the state the change was made from.
+  // A newly created Phrase isn't in it and can't unlink anything.
+  function refreshIfUnlinked(id: string, change: LinkChange) {
+    const previous = phrases.find(p => p.id === id)
     if (!previous) return
-    const { unpairsAnswers } = linkConsequence(
-      previous,
-      { kind: 'retype', to: saved.phrase_type },
-      exchangeIndex.answerCount(previous.id)
-    )
+    const { unpairsAnswers } = linkConsequence(previous, change, exchangeIndex.answerCount(id))
     if (unpairsAnswers > 0) void refreshAfterUnlink()
   }
 
+  function handlePhraseSaved(saved: Phrase) {
+    setPhrases(prev =>
+      prev.some(p => p.id === saved.id) ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
+    )
+    refreshIfUnlinked(saved.id, { kind: 'retype', to: saved.phrase_type })
+  }
+
   function handlePhraseDeleted(id: string) {
-    const previous = phrases.find(p => p.id === id)
     setPhrases(prev => prev.filter(p => p.id !== id))
-    if (!previous) return
-    const { unpairsAnswers } = linkConsequence(previous, { kind: 'delete' }, exchangeIndex.answerCount(id))
-    if (unpairsAnswers > 0) void refreshAfterUnlink()
+    refreshIfUnlinked(id, { kind: 'delete' })
   }
 
   function renderPhraseCard(phrase: Phrase) {

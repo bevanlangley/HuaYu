@@ -17,7 +17,7 @@ function setup() {
   return renderHook(() =>
     useRevealSession<string, { n: number }>({
       loadItems,
-      failureLabel: 'start test session',
+      failureLog: 'Failed to start test session',
       failureToast: 'Could not load items. Try again.',
     })
   )

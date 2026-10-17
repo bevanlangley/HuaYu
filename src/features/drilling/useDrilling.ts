@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { fetchSeeds } from '@/features/seeds/seedsService'
+import { useSeedList } from '@/features/seeds/useSeedList'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
-import { buildExchangeIndex } from '@/features/phrases/exchanges'
+import { buildExchangeIndex, groupPhrases } from '@/features/phrases/exchanges'
 import { speakMandarin } from '@/lib/tts'
 import { useTts } from '@/context/TtsContext'
 import { logger } from '@/lib/logger'
 import { shuffleArray } from '@/lib/utils'
-import type { Phrase, SeedWithCount } from '@/lib/database.types'
+import type { Phrase } from '@/lib/database.types'
 
 export type DrillType = 'listen' | 'shadow'
 export type PlaybackState = 'playing' | 'paused'
@@ -23,8 +24,7 @@ export interface DrillConfig {
 export function useDrilling() {
   const { setCurrentlyPlaying } = useTts()
 
-  const [seeds, setSeeds] = useState<SeedWithCount[]>([])
-  const [seedsLoading, setSeedsLoading] = useState(true)
+  const { seeds, seedsLoading } = useSeedList(fetchSeeds)
 
   const [sessionActive, setSessionActive] = useState(false)
   const [config, setConfig] = useState<DrillConfig | null>(null)
@@ -39,16 +39,6 @@ export function useDrilling() {
   const phrasesRef = useRef<Phrase[]>([])
   const indexRef = useRef(0)
   const playbackStateRef = useRef<PlaybackState>('playing')
-
-  useEffect(() => {
-    fetchSeeds()
-      .then(setSeeds)
-      .catch((err) => {
-        logger.error('Failed to load seeds for drill', err)
-        toast.error('Could not load seeds. Try again.')
-      })
-      .finally(() => setSeedsLoading(false))
-  }, [])
 
   // Cancels in-flight audio and the pending gap timer. Callers clear currentlyPlaying themselves.
   const halt = useCallback(() => {
@@ -119,9 +109,7 @@ export function useDrilling() {
         : await fetchAllPhrasesUnpaginated()
       const { groups } = buildExchangeIndex(raw)
       const orderedGroups = cfg.random ? shuffleArray(groups) : groups
-      const ordered = orderedGroups.flatMap((group) =>
-        group.kind === 'exchange' ? [group.question, ...group.answers] : [group.phrase]
-      )
+      const ordered = orderedGroups.flatMap(groupPhrases)
       phrasesRef.current = ordered
       configRef.current = cfg
       indexRef.current = 0
