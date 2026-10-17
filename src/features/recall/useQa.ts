@@ -41,8 +41,8 @@ export function useQa() {
       const phrases = cfg.seedId
         ? await fetchPhrasesBySeed(cfg.seedId)
         : await fetchAllPhrasesUnpaginated()
-      const { exchanges: raw } = buildExchangeIndex(phrases)
-      const ordered = cfg.random ? shuffleArray(raw) : raw
+      const { exchanges: complete } = buildExchangeIndex(phrases)
+      const ordered = cfg.random ? shuffleArray(complete) : complete
       exchangesRef.current = ordered
       setExchanges(ordered)
       setCurrentIndex(0)

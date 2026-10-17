@@ -89,13 +89,13 @@ export function SeedDetail() {
   const { pageGroups, totalPages } = paginateGroups(exchangeIndex.groups, page, PAGE_SIZE)
   const unpairedCount = exchangeIndex.unpairedCount
 
-  function renderPhraseCard(phrase: Phrase, linkedAnswerCount: number) {
+  function renderPhraseCard(phrase: Phrase) {
     return (
       <PhraseCard
         key={phrase.id}
         phrase={phrase}
         isUnpaired={exchangeIndex.isUnpaired(phrase.id)}
-        linkedAnswerCount={linkedAnswerCount}
+        linkedAnswerCount={exchangeIndex.answerCount(phrase.id)}
         onEdit={handlePhraseEdit}
         onDeleted={handlePhraseDeleted}
         onUpdated={handlePhraseSaved}
@@ -197,18 +197,16 @@ export function SeedDetail() {
           <>
             <div className="grid gap-3 sm:grid-cols-2">
               {pageGroups.map(group =>
-                // A `standalone` question-typed phrase always has zero linked answers — otherwise
-                // buildExchangeIndex would have produced an `exchange` group instead.
                 group.kind === 'standalone' ? (
-                  renderPhraseCard(group.phrase, 0)
+                  renderPhraseCard(group.phrase)
                 ) : (
                   <div
                     key={group.question.id}
                     data-testid="exchange-group"
                     className="flex flex-col gap-2 rounded-lg border border-grey-200 bg-grey-100 p-2 dark:border-grey-700 dark:bg-grey-800 sm:col-span-2"
                   >
-                    {renderPhraseCard(group.question, group.answers.length)}
-                    {group.answers.map(answer => renderPhraseCard(answer, 0))}
+                    {renderPhraseCard(group.question)}
+                    {group.answers.map(answer => renderPhraseCard(answer))}
                   </div>
                 )
               )}
