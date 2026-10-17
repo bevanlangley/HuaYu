@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { fetchPhrasesBySeed, fetchAllPhrasesUnpaginated } from '@/features/phrases/phrasesService'
 import { buildExchangeIndex } from '@/features/phrases/exchanges'
 import { fetchSeedsWithExchangeCounts, type SeedWithExchangeCount } from './qaService'
 import { logger } from '@/lib/logger'
 import { shuffleArray } from '@/lib/utils'
+import { useRevealSession } from './useRevealSession'
 import { toast } from 'sonner'
 import type { Exchange } from '@/lib/database.types'
 
@@ -12,18 +13,23 @@ export interface QaConfig {
   random: boolean
 }
 
+async function loadExchanges(cfg: QaConfig): Promise<Exchange[]> {
+  const phrases = cfg.seedId
+    ? await fetchPhrasesBySeed(cfg.seedId)
+    : await fetchAllPhrasesUnpaginated()
+  const { exchanges } = buildExchangeIndex(phrases)
+  return cfg.random ? shuffleArray(exchanges) : exchanges
+}
+
 export function useQa() {
   const [seeds, setSeeds] = useState<SeedWithExchangeCount[]>([])
   const [seedsLoading, setSeedsLoading] = useState(true)
 
-  const [sessionActive, setSessionActive] = useState(false)
-  const [exchanges, setExchanges] = useState<Exchange[]>([])
-  const [exchangesLoading, setExchangesLoading] = useState(false)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set())
-  const [justRevealed, setJustRevealed] = useState(false)
-
-  const exchangesRef = useRef<Exchange[]>([])
+  const session = useRevealSession<Exchange, QaConfig>({
+    loadItems: loadExchanges,
+    failureLabel: 'start Q&A session',
+    failureToast: 'Could not load exchanges. Try again.',
+  })
 
   useEffect(() => {
     fetchSeedsWithExchangeCounts()
@@ -35,73 +41,20 @@ export function useQa() {
       .finally(() => setSeedsLoading(false))
   }, [])
 
-  const startSession = useCallback(async (cfg: QaConfig) => {
-    setExchangesLoading(true)
-    try {
-      const phrases = cfg.seedId
-        ? await fetchPhrasesBySeed(cfg.seedId)
-        : await fetchAllPhrasesUnpaginated()
-      const { exchanges: complete } = buildExchangeIndex(phrases)
-      const ordered = cfg.random ? shuffleArray(complete) : complete
-      exchangesRef.current = ordered
-      setExchanges(ordered)
-      setCurrentIndex(0)
-      setRevealedIndices(new Set())
-      setJustRevealed(false)
-      setSessionActive(true)
-    } catch (err) {
-      logger.error('Failed to start Q&A session', err)
-      toast.error('Could not load exchanges. Try again.')
-    } finally {
-      setExchangesLoading(false)
-    }
-  }, [])
-
-  const stopSession = useCallback(() => {
-    setSessionActive(false)
-    exchangesRef.current = []
-    setExchanges([])
-    setCurrentIndex(0)
-    setRevealedIndices(new Set())
-    setJustRevealed(false)
-  }, [])
-
-  const reveal = useCallback(() => {
-    setRevealedIndices((prev) => {
-      const next = new Set(prev)
-      next.add(currentIndex)
-      return next
-    })
-    setJustRevealed(true)
-  }, [currentIndex])
-
-  const next = useCallback(() => {
-    setCurrentIndex((i) => Math.min(i + 1, exchangesRef.current.length - 1))
-    setJustRevealed(false)
-  }, [])
-
-  const previous = useCallback(() => {
-    setCurrentIndex((i) => Math.max(i - 1, 0))
-    setJustRevealed(false)
-  }, [])
-
-  const currentExchange = exchanges[currentIndex] ?? null
-  const isRevealed = revealedIndices.has(currentIndex)
-
   return {
     seeds,
     seedsLoading,
-    sessionActive,
-    exchanges,
-    exchangesLoading,
-    currentIndex,
-    currentExchange,
-    isRevealed,
-    justRevealed,
-    startSession,
-    stopSession,
-    reveal,
-    next,
-    previous,
+    sessionActive: session.sessionActive,
+    exchanges: session.items,
+    exchangesLoading: session.loading,
+    currentIndex: session.currentIndex,
+    currentExchange: session.currentItem,
+    isRevealed: session.isRevealed,
+    justRevealed: session.justRevealed,
+    startSession: session.startSession,
+    stopSession: session.stopSession,
+    reveal: session.reveal,
+    next: session.next,
+    previous: session.previous,
   }
 }
