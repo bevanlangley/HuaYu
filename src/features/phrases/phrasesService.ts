@@ -50,16 +50,13 @@ export async function createPhrase(
   return data
 }
 
-export async function updatePhrase(
-  id: string,
-  values: PhraseFormData,
-  opts: { clearQuestionId?: boolean } = {}
-): Promise<Phrase> {
+// Retyping a Phrase needs no client-side follow-up: the database unlinks Answers when a Question
+// stops being one and clears an Answer's own Link when it stops being an Answer (ADR 0003).
+export async function updatePhrase(id: string, values: PhraseFormData): Promise<Phrase> {
   logger.info('Updating phrase', { id })
-  const payload = opts.clearQuestionId ? { ...values, question_id: null } : values
   const { data, error } = await supabase
     .from('phrases')
-    .update(payload)
+    .update(values)
     .eq('id', id)
     .select()
     .single()
@@ -70,23 +67,6 @@ export async function updatePhrase(
   }
   logger.info('Phrase updated', { id })
   return data
-}
-
-// Orphans every Answer linked to this Question (their own rows are otherwise untouched).
-// Used when a Question is retyped away from `question` while it still has linked Answers —
-// unlike a delete, there's no FK cascade to rely on since the Question row itself survives.
-export async function unlinkAnswersFromQuestion(questionId: string): Promise<void> {
-  logger.info('Unlinking answers from question', { questionId })
-  const { error } = await supabase
-    .from('phrases')
-    .update({ question_id: null })
-    .eq('question_id', questionId)
-
-  if (error) {
-    logger.error('Failed to unlink answers from question', error)
-    throw error
-  }
-  logger.info('Answers unlinked from question', { questionId })
 }
 
 export async function deletePhrase(id: string): Promise<void> {

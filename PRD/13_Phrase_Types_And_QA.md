@@ -203,7 +203,7 @@ existing `openConfirmDialog` pattern — see `.claude/memory/patterns.md` §5):
 |---|---|---|
 | Answer → Statement/Question | `question_id` cleared on this row | No — only this row changes |
 | Question → Statement/Answer, **no linked Answers** | Nothing else to clean up | No |
-| Question → Statement/Answer, **has linked Answers** | Every linked Answer's `question_id` is cleared, orphaning them | **Yes** — dialog: *"This question has N linked answer(s). Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?"* |
+| Question → Statement/Answer, **has linked Answers** | Every linked Answer's `question_id` is cleared (they are unlinked), becoming unpaired | **Yes** — dialog: *"This question has N linked answer(s). Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?"* |
 | Statement → Question/Answer | No prior links exist (Statements can't hold links) | No |
 
 The rule in one sentence, worth stating explicitly since it generalises beyond this feature:

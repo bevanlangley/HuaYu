@@ -18,9 +18,9 @@ export interface ExchangeIndex {
   exchangeCountBySeed: ReadonlyMap<string, number>
 }
 
-// Only an Answer can be linked, and only to a Question present in the same input. Anything else
-// holding a question_id (a Statement, or an Answer pointing at a non-Question or missing row) is
-// not linked.
+// Only an Answer can be linked, and only to a Question present in the same input. The database
+// guarantees every Link runs from an Answer to a Question (ADR 0003); the presence check remains
+// because a partial or filtered Phrase list can hold an Answer whose Question isn't in it.
 function buildAnswersByQuestionId(phrases: Phrase[]): Map<string, Phrase[]> {
   const answersByQuestionId = new Map<string, Phrase[]>()
   for (const p of phrases) {

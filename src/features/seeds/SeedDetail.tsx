@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
 import { fetchPhrasesBySeed } from '@/features/phrases/phrasesService'
 import { buildExchangeIndex, paginateGroups } from '@/features/phrases/exchanges'
+import { linkConsequence } from '@/features/phrases/linkConsequence'
 import { PhraseCard } from '@/features/phrases/PhraseCard'
 import { PhraseForm } from '@/features/phrases/PhraseForm'
 import { Header } from '@/components/layout/Header'
@@ -65,29 +66,41 @@ export function SeedDetail() {
     setFormOpen(true)
   }
 
-  function handlePhraseSaved(saved: Phrase) {
-    setPhrases(prev => {
-      const previous = prev.find(p => p.id === saved.id)
-      const updated = previous ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
-      // Retyping a Question away from `question` unlinks its Answers server-side; mirror that
-      // locally so their cards drop the link and pick up the unpaired warning immediately.
-      const retypedAwayFromQuestion = previous?.phrase_type === 'question' && saved.phrase_type !== 'question'
-      if (!retypedAwayFromQuestion) return updated
-      return updated.map(p => (p.question_id === saved.id ? { ...p, question_id: null } : p))
-    })
-  }
-
-  function handlePhraseDeleted(id: string) {
-    setPhrases(prev =>
-      prev
-        .filter(p => p.id !== id)
-        .map(p => (p.question_id === id ? { ...p, question_id: null } : p))
-    )
-  }
-
   const exchangeIndex = useMemo(() => buildExchangeIndex(phrases), [phrases])
   const { pageGroups, totalPages } = paginateGroups(exchangeIndex.groups, page, PAGE_SIZE)
   const unpairedCount = exchangeIndex.unpairedCount
+
+  // The database unlinks Answers when their Question is deleted or retyped (ADR 0003). The saved
+  // row is applied locally at once; if other rows were affected, refetch rather than predict.
+  async function refreshAfterUnlink() {
+    try {
+      setPhrases(await fetchPhrasesBySeed(seedId!))
+    } catch {
+      toast.error("Phrase saved, but the list couldn't refresh. Reload to see linked answers.")
+    }
+  }
+
+  function handlePhraseSaved(saved: Phrase) {
+    const previous = phrases.find(p => p.id === saved.id)
+    setPhrases(prev =>
+      prev.some(p => p.id === saved.id) ? prev.map(p => (p.id === saved.id ? saved : p)) : [...prev, saved]
+    )
+    if (!previous) return
+    const { unpairsAnswers } = linkConsequence(
+      previous,
+      { kind: 'retype', to: saved.phrase_type },
+      exchangeIndex.answerCount(previous.id)
+    )
+    if (unpairsAnswers > 0) void refreshAfterUnlink()
+  }
+
+  function handlePhraseDeleted(id: string) {
+    const previous = phrases.find(p => p.id === id)
+    setPhrases(prev => prev.filter(p => p.id !== id))
+    if (!previous) return
+    const { unpairsAnswers } = linkConsequence(previous, { kind: 'delete' }, exchangeIndex.answerCount(id))
+    if (unpairsAnswers > 0) void refreshAfterUnlink()
+  }
 
   function renderPhraseCard(phrase: Phrase) {
     return (

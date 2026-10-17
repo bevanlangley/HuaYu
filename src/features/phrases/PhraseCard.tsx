@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, Link2, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { deletePhrase, describeLinkedAnswerCount } from '@/features/phrases/phrasesService'
+import { linkConsequence } from '@/features/phrases/linkConsequence'
 import { AttachToQuestionDialog } from '@/features/phrases/AttachToQuestionDialog'
 import { AudioPlayButton } from '@/components/ui/AudioPlayButton'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
@@ -43,13 +44,13 @@ export function PhraseCard({
 
   async function handleDelete() {
     // A Question with linked Answers has a side-effect on rows other than the one being
-    // edited (they become unpaired), so it gets a qualified warning; everything else keeps
+    // deleted (they become unpaired), so it gets a qualified warning; everything else keeps
     // the existing unqualified copy.
-    const hasLinkedAnswers = phrase.phrase_type === 'question' && linkedAnswerCount > 0
+    const { unpairsAnswers } = linkConsequence(phrase, { kind: 'delete' }, linkedAnswerCount)
     const confirmed = await openConfirmDialog({
       title: 'Delete phrase',
-      description: hasLinkedAnswers
-        ? `This question has ${describeLinkedAnswerCount(linkedAnswerCount)}. Deleting it will unlink them — they'll become unpaired and drop out of Q&A, but won't be deleted. This can't be undone.`
+      description: unpairsAnswers > 0
+        ? `This question has ${describeLinkedAnswerCount(unpairsAnswers)}. Deleting it will unlink them — they'll become unpaired and drop out of Q&A, but won't be deleted. This can't be undone.`
         : `Delete "${phrase.mandarin}" (${phrase.english})? This cannot be undone.`,
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',

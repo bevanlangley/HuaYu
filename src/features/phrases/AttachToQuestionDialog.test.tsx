@@ -112,7 +112,7 @@ describe('AttachToQuestionDialog', () => {
     await waitFor(() => expect(fetchQuestionsBySeed).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not update the link. Try again.'))
     expect(onClose).not.toHaveBeenCalled()
   })
 

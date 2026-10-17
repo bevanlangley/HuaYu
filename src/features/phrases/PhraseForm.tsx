@@ -7,9 +7,9 @@ import type { PhraseFormData } from '@/features/phrases/phrasesService'
 import {
   createPhrase,
   updatePhrase,
-  unlinkAnswersFromQuestion,
   describeLinkedAnswerCount,
 } from '@/features/phrases/phrasesService'
+import { linkConsequence } from '@/features/phrases/linkConsequence'
 import { useConfirmDialog } from '@/context/ConfirmDialogContext'
 import type { Phrase } from '@/lib/database.types'
 import {
@@ -82,18 +82,20 @@ export function PhraseForm({
 
   async function onSubmit(values: PhraseFormData) {
     if (isEdit) {
-      const previousType = phrase!.phrase_type
-      const retypingAway = values.phrase_type !== previousType
       // A destructive side-effect on a row other than the one being edited always gets a
-      // confirm dialog; a side-effect confined to this row (clearing its own question_id)
-      // does not — see PRD/13_Phrase_Types_And_QA.md "Editing an Existing Phrase's Type".
-      const unlinkingChildren = previousType === 'question' && retypingAway && linkedAnswerCount > 0
-      const clearingOwnLink = previousType === 'answer' && retypingAway
+      // confirm dialog; a side-effect confined to this row (an Answer's own Link) does not —
+      // see PRD/13_Phrase_Types_And_QA.md "Editing an Existing Phrase's Type". The database
+      // performs the Unlink (ADR 0003), so this is a single update.
+      const { unpairsAnswers } = linkConsequence(
+        phrase!,
+        { kind: 'retype', to: values.phrase_type },
+        linkedAnswerCount
+      )
 
-      if (unlinkingChildren) {
+      if (unpairsAnswers > 0) {
         const confirmed = await openConfirmDialog({
           title: 'Change phrase type',
-          description: `This question has ${describeLinkedAnswerCount(linkedAnswerCount)}. Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?`,
+          description: `This question has ${describeLinkedAnswerCount(unpairsAnswers)}. Changing its type will unlink them; they'll become unpaired and drop out of Q&A. Continue?`,
           confirmLabel: 'Continue',
           cancelLabel: 'Cancel',
           variant: 'danger',
@@ -103,26 +105,10 @@ export function PhraseForm({
 
       let saved: Phrase
       try {
-        saved = clearingOwnLink
-          ? await updatePhrase(phrase!.id, values, { clearQuestionId: true })
-          : await updatePhrase(phrase!.id, values)
+        saved = await updatePhrase(phrase!.id, values)
       } catch {
         toast.error('Could not update phrase. Try again.')
         return
-      }
-
-      if (unlinkingChildren) {
-        try {
-          await unlinkAnswersFromQuestion(phrase!.id)
-        } catch {
-          // The retype itself already succeeded — only the follow-up unlink failed. Report
-          // that distinctly rather than the generic "could not update" (which would be
-          // wrong) and still close, since re-submitting won't retry the unlink.
-          toast.error('Phrase type changed, but linked answers could not be unlinked. Try again.')
-          onSaved(saved)
-          onClose()
-          return
-        }
       }
 
       toast.success('Phrase updated')

@@ -28,7 +28,15 @@ No additional indexes needed for Phase 1 scale.
 | `english` | text | NOT NULL | |
 | `pinyin` | text | NOT NULL | With tone marks |
 | `phrase_type` | `phrase_type` enum | NOT NULL, default `'statement'` | Values: `question`/`answer`/`statement`. Native Postgres enum (not `text` + `CHECK`) so `supabase gen types` emits a real TS union |
+| `question_id` | uuid | nullable, composite FK `(question_id, seed_id)` → `(id, seed_id)` ON DELETE SET NULL (question_id) | Link from an Answer to its Question; same Seed enforced by the FK. See ADR 0001 |
 | `created_at` | timestamptz | default `now()` | |
+
+**Link rules (trigger `phrases_enforce_link_rules`, ADR 0003):** the database owns Link validity.
+A row that stops being a Question unlinks all its Answers; a row that stops being an Answer has
+its own `question_id` cleared; setting `question_id` on a non-Answer or at a non-Question raises
+`check_violation`. The client never unlinks — a retype is one plain `update`; after a delete or
+retype that unlinks others, SeedDetail refetches (`linkConsequence` decides when).
+`supabase/verify_link_rules.sql` checks the trigger (always rolls back; run it via the Management API).
 
 Index on `seed_id` for performant phrase lookups by seed.
 **Search:** `ilike` across `mandarin`, `english`, `pinyin` — no FTS index needed at Phase 1 scale.

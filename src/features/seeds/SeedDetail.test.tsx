@@ -25,16 +25,15 @@ vi.mock('@/features/phrases/phrasesService', async (importOriginal) => {
     fetchPhrasesBySeed: vi.fn(),
     deletePhrase: vi.fn(),
     updatePhrase: vi.fn(),
-    unlinkAnswersFromQuestion: vi.fn(),
   }
 })
 
+import { toast } from 'sonner'
 import { fetchSeedById } from '@/features/seeds/seedsService'
 import {
   fetchPhrasesBySeed,
   deletePhrase,
   updatePhrase,
-  unlinkAnswersFromQuestion,
 } from '@/features/phrases/phrasesService'
 
 const mockSeed = { id: 's1', name: 'Taxi Conversations', tag: null, source_url: null, created_at: '2024-01-01' }
@@ -81,6 +80,19 @@ function unpairedIconWithin(card: HTMLElement) {
   return within(card).queryByLabelText('Unpaired — does not appear in Q&A')
 }
 
+const unlinkedAnswer = { ...mockAnswer, question_id: null }
+
+async function openPhraseMenuAction(user: ReturnType<typeof userEvent.setup>, mandarin: string, action: 'Edit' | 'Delete') {
+  await user.click(within(phraseCardFor(mandarin)).getByLabelText('Phrase options'))
+  await user.click(await screen.findByText(action))
+}
+
+async function retypeTo(user: ReturnType<typeof userEvent.setup>, mandarin: string, type: string) {
+  await openPhraseMenuAction(user, mandarin, 'Edit')
+  await user.selectOptions(await screen.findByLabelText(/phrase type/i), type)
+  await user.click(screen.getByRole('button', { name: /save changes/i }))
+}
+
 describe('SeedDetail — delete/retype guardrails for linked phrases', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -88,52 +100,100 @@ describe('SeedDetail — delete/retype guardrails for linked phrases', () => {
     vi.mocked(fetchPhrasesBySeed).mockResolvedValue([mockQuestion, mockAnswer])
   })
 
-  it('shows the unpaired warning on the Answer immediately after its Question is deleted', async () => {
+  it('confirms, deletes, then refetches so the unlinked Answer shows the unpaired warning', async () => {
+    vi.mocked(deletePhrase).mockResolvedValue(undefined)
+    vi.mocked(fetchPhrasesBySeed)
+      .mockResolvedValueOnce([mockQuestion, mockAnswer])
+      .mockResolvedValueOnce([unlinkedAnswer])
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText(mockQuestion.mandarin)
+    expect(unpairedIconWithin(phraseCardFor(mockAnswer.mandarin))).not.toBeInTheDocument()
+
+    await openPhraseMenuAction(user, mockQuestion.mandarin, 'Delete')
+    expect(await screen.findByText(/1 linked answer/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(deletePhrase).toHaveBeenCalledWith('q1'))
+    await waitFor(() => expect(fetchPhrasesBySeed).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      expect(screen.queryByText(mockQuestion.mandarin)).not.toBeInTheDocument()
+      expect(unpairedIconWithin(phraseCardFor(mockAnswer.mandarin))).toBeInTheDocument()
+    })
+  })
+
+  it('confirms, retypes with a single update, then refetches the unlinked Answers', async () => {
+    const retyped = { ...mockQuestion, phrase_type: 'statement' as const }
+    vi.mocked(updatePhrase).mockResolvedValue(retyped)
+    vi.mocked(fetchPhrasesBySeed)
+      .mockResolvedValueOnce([mockQuestion, mockAnswer])
+      .mockResolvedValueOnce([retyped, unlinkedAnswer])
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText(mockQuestion.mandarin)
+    await retypeTo(user, mockQuestion.mandarin, 'statement')
+    expect(await screen.findByText(/1 linked answer/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    await waitFor(() => expect(fetchPhrasesBySeed).toHaveBeenCalledTimes(2))
+    expect(updatePhrase).toHaveBeenCalledTimes(1)
+    expect(updatePhrase).toHaveBeenCalledWith('q1', expect.objectContaining({ phrase_type: 'statement' }))
+    await waitFor(() =>
+      expect(unpairedIconWithin(phraseCardFor(mockAnswer.mandarin))).toBeInTheDocument()
+    )
+  })
+
+  it('keeps the saved list and explains when the refetch fails, without reporting the save as failed', async () => {
+    const retyped = { ...mockQuestion, phrase_type: 'statement' as const }
+    vi.mocked(updatePhrase).mockResolvedValue(retyped)
+    vi.mocked(fetchPhrasesBySeed)
+      .mockResolvedValueOnce([mockQuestion, mockAnswer])
+      .mockRejectedValueOnce(new Error('network'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText(mockQuestion.mandarin)
+    await retypeTo(user, mockQuestion.mandarin, 'statement')
+    await user.click(await screen.findByRole('button', { name: 'Continue' }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Phrase saved, but the list couldn't refresh. Reload to see linked answers."
+      )
+    )
+    expect(toast.error).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(mockAnswer.mandarin)).toBeInTheDocument()
+    expect(unpairedIconWithin(phraseCardFor(mockAnswer.mandarin))).toBeInTheDocument()
+  })
+
+  it('does not refetch or confirm when deleting an Answer', async () => {
     vi.mocked(deletePhrase).mockResolvedValue(undefined)
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText(mockQuestion.mandarin)
-    const answerCard = phraseCardFor(mockAnswer.mandarin)
-    expect(unpairedIconWithin(answerCard)).not.toBeInTheDocument()
+    await screen.findByText(mockAnswer.mandarin)
+    await openPhraseMenuAction(user, mockAnswer.mandarin, 'Delete')
+    expect(screen.queryByText(/linked answer/i)).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
 
-    const questionCard = phraseCardFor(mockQuestion.mandarin)
-    await user.click(within(questionCard).getByLabelText('Phrase options'))
-    await user.click(await screen.findByText('Delete'))
-
-    expect(await screen.findByText(/linked answer/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
-
-    await waitFor(() => expect(deletePhrase).toHaveBeenCalledWith('q1'))
-    await waitFor(() => {
-      const remainingAnswerCard = phraseCardFor(mockAnswer.mandarin)
-      expect(unpairedIconWithin(remainingAnswerCard)).toBeInTheDocument()
-    })
+    await waitFor(() => expect(deletePhrase).toHaveBeenCalledWith('a1'))
+    await waitFor(() => expect(screen.queryByText(mockAnswer.mandarin)).not.toBeInTheDocument())
+    expect(fetchPhrasesBySeed).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the unpaired warning on the Answer immediately after its Question is retyped away', async () => {
-    vi.mocked(updatePhrase).mockResolvedValue({ ...mockQuestion, phrase_type: 'statement' })
-    vi.mocked(unlinkAnswersFromQuestion).mockResolvedValue(undefined)
+  it('retypes an Answer without confirming or refetching', async () => {
+    vi.mocked(updatePhrase).mockResolvedValue({ ...mockAnswer, phrase_type: 'statement', question_id: null })
     const user = userEvent.setup()
     renderPage()
 
-    await screen.findByText(mockQuestion.mandarin)
-    const questionCard = phraseCardFor(mockQuestion.mandarin)
-    await user.click(within(questionCard).getByLabelText('Phrase options'))
-    await user.click(await screen.findByText('Edit'))
+    await screen.findByText(mockAnswer.mandarin)
+    await retypeTo(user, mockAnswer.mandarin, 'statement')
 
-    const select = await screen.findByLabelText(/phrase type/i)
-    await user.selectOptions(select, 'statement')
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
-
-    expect(await screen.findByText(/linked answer/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Continue' }))
-
-    await waitFor(() => expect(unlinkAnswersFromQuestion).toHaveBeenCalledWith('q1'))
-    await waitFor(() => {
-      const answerCard = phraseCardFor(mockAnswer.mandarin)
-      expect(unpairedIconWithin(answerCard)).toBeInTheDocument()
-    })
+    await waitFor(() => expect(updatePhrase).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText(/linked answer/i)).not.toBeInTheDocument()
+    expect(fetchPhrasesBySeed).toHaveBeenCalledTimes(1)
   })
 })
 
