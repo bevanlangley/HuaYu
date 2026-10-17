@@ -41,7 +41,7 @@ many-to-many link model, its UI (multi-select picker), and its Q&A-session dedup
 ## Consequences
 - Schema stays a single column addition to `phrases`, no new table, no new service layer.
 - The "attach to a question" UI is a single-select dropdown, not a multi-select.
-- Deleting or retyping a Question orphans its Answers (`ON DELETE SET NULL`); deleting or retyping
+- Deleting or retyping a Question unlinks its Answers (`ON DELETE SET NULL`); deleting or retyping
   an Answer only ever affects that one row, never a shared link other Phrases depend on.
 - If Answer reuse across Questions is ever needed, this is an additive migration: introduce a
   junction table, backfill it from the existing `question_id` column, and deprecate the column —

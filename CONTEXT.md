@@ -48,8 +48,15 @@ Questions is not supported — if the same reply is valid for two Questions, it 
 as two Phrase rows.
 
 A Link is only ever formed between two Phrases in the **same Seed**; a Question and its Answers
-never cross Seed boundaries. This is enforced at the database level (composite foreign key on
-`(id, seed_id)`), not just in the UI.
+never cross Seed boundaries. A Link always runs from a Phrase that is currently an Answer to a
+Phrase that is currently a Question — a Link to or from any other type cannot exist. Both rules
+are enforced by the database, not just the UI.
+
+## Unlink
+
+Breaking a Link, leaving the Answer **unpaired** (the Answer itself is never deleted). Happens
+when a Question is deleted, when a Question is retyped away from Question (all its Answers are
+unlinked), or when an Answer is retyped away from Answer (only its own Link is broken).
 
 ## Exchange
 
@@ -58,8 +65,7 @@ Deliberately not called a "pair," since a Question may carry more than two Phras
 Question, several Answers). An Exchange exists only when a Question has at least one linked
 Answer — a Question with zero Answers is not an Exchange, it's an **unpaired** Question.
 
-Only an Answer can be part of an Exchange. A Statement or Question that somehow references a
-Question is not linked to it and never joins its Exchange.
+Only an Answer can be part of an Exchange.
 
 ## Standalone Phrase
 
@@ -71,8 +77,7 @@ and Standalone Phrases.
 
 The state of a Question with no linked Answers, or an Answer with no linked Question. Unpaired
 Phrases are flagged with a warning icon on their card and are excluded from Q&A — only complete
-Exchanges (a Question with ≥1 Answer) are drillable. An Answer whose reference points at something
-that is not a Question is unpaired too, and is shown like any other unpaired Phrase, never hidden. Unpaired is not an error state the user must
+Exchanges (a Question with ≥1 Answer) are drillable. Unpaired is not an error state the user must
 resolve; it's a normal transient state while building out a Seed (e.g., you've written the
 Question but haven't added an Answer yet).
 
